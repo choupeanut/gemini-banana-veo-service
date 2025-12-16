@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY environment variable is not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function POST(req: Request) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY environment variable is not set." },
+        { status: 500 }
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
     const contentType = req.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY environment variable is not set.");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function POST(req: Request) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY environment variable is not set." },
+        { status: 500 }
+      );
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
     const contentType = req.headers.get("content-type") || "";
 
     if (!contentType.includes("multipart/form-data")) {
@@ -60,8 +62,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ name });
   } catch (error: unknown) {
     console.error("Error starting Veo generation:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to start generation" },
+      { error: errorMessage || "Failed to start generation" },
       { status: 500 }
     );
   }
