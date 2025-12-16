@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI, HarmCategory } from "@google/genai";
+import { HarmCategory } from "@google/genai";
 
 export async function GET() {
   try {

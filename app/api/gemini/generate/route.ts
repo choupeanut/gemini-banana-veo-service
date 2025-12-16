@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: Request) {
   try {
@@ -28,22 +28,23 @@ export async function POST(req: Request) {
       config: {
         safetySettings: [
           {
-            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_ONLY_HIGH",
           },
           {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_ONLY_HIGH",
           },
           {
-            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_ONLY_HIGH",
           },
           {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_ONLY_HIGH",
           },
-        ],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ] as any,
       },
     });
 
