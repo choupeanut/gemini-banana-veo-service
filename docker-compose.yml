@@ -2,9 +2,7 @@ version: '3'
 
 services:
   veo-studio:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: peanutchou/veo-studio
     container_name: veo-studio
     restart: always
     ports:
