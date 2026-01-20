@@ -21,6 +21,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const getModelsForMode = (currentMode: StudioMode) => {
     if (currentMode === "create-video") {
       return [
+        "veo-3.1-generate-001",
         "veo-3.0-generate-001",
         "veo-3.0-fast-generate-001",
         "veo-2.0-generate-001",
@@ -38,6 +39,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const models = getModelsForMode(mode);
 
   const formatModelName = (model: string) => {
+    if (model.includes("veo-3.1")) return "Veo 3.1 (Preview)";
     if (model.includes("veo-3.0-fast")) return "Veo 3 - Fast";
     if (model.includes("veo-3.0")) return "Veo 3";
     if (model.includes("veo-2.0")) return "Veo 2";

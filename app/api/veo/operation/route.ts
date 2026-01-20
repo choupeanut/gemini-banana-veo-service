@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +8,6 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const body = await req.json();
     const name = body.name as string | undefined;
@@ -21,12 +19,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Some SDK versions accept just the name, others expect an operation object.
-    // We'll pass the minimal required shape with a name.
-    const fresh = await ai.operations.getVideosOperation({
-      operation: { name } as unknown as never,
-    });
+    // Direct REST API call to bypass SDK issues
+    const apiKey = process.env.GEMINI_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/${name}?key=${apiKey}`;
 
+    const resp = await fetch(url);
+    if (!resp.ok) {
+        throw new Error(`Google API error: ${resp.status} ${resp.statusText}`);
+    }
+    
+    const fresh = await resp.json();
     return NextResponse.json(fresh);
   } catch (error) {
     console.error("Error polling operation:", error);

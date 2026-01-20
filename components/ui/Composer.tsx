@@ -10,7 +10,6 @@ import {
   Download,
   Sparkles,
 } from "lucide-react";
-import ModelSelector from "@/components/ui/ModelSelector";
 import {
   Tooltip,
   TooltipContent,
@@ -31,9 +30,6 @@ interface ComposerProps {
 
   prompt: string;
   setPrompt: (value: string) => void;
-
-  selectedModel: string;
-  setSelectedModel: (model: string) => void;
 
   canStart: boolean;
   isGenerating: boolean;
@@ -59,8 +55,6 @@ const Composer: React.FC<ComposerProps> = ({
   hasVideoUrl = false,
   prompt,
   setPrompt,
-  selectedModel,
-  setSelectedModel,
   canStart,
   isGenerating,
   startGeneration,
@@ -101,29 +95,11 @@ const Composer: React.FC<ComposerProps> = ({
     }
   };
 
-  const isTabDisabled = (tabMode: StudioMode) => {
-    // When video is generated, disable all tabs
-    if (hasVideoUrl) {
-      return true;
-    }
-
-    // When image is generated, disable create-image tab but allow others
-    if (hasGeneratedImage && tabMode === "create-image") {
-      return true;
-    }
-
+  const isTabDisabled = () => {
     return false;
   };
 
-  const getTabTooltip = (tabMode: StudioMode) => {
-    if (hasVideoUrl) {
-      return "Reset to create new content";
-    }
-
-    if (hasGeneratedImage && tabMode === "create-image") {
-      return "Use edit, compose, or video modes with existing image";
-    }
-
+  const getTabTooltip = () => {
     return null;
   };
 
@@ -142,13 +118,15 @@ const Composer: React.FC<ComposerProps> = ({
             </button>
           </div>
         )}
-        <div className="flex items-center justify-between mb-3">
+        
+        {/* Model Selector hidden as requested */}
+        {/* <div className="flex items-center justify-between mb-3">
           <ModelSelector
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
             mode={mode}
           />
-        </div>
+        </div> */}
 
         {mode === "create-video" && (
           <textarea
@@ -237,13 +215,13 @@ const Composer: React.FC<ComposerProps> = ({
             <TooltipTrigger asChild>
               <button
                 onClick={() =>
-                  !isTabDisabled("create-image") && setMode("create-image")
+                  !isTabDisabled() && setMode("create-image")
                 }
-                disabled={isTabDisabled("create-image")}
+                disabled={isTabDisabled()}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
                   mode === "create-image"
                     ? "bg-indigo-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled("create-image")
+                    : isTabDisabled()
                     ? "text-slate-400 cursor-not-allowed opacity-50"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
@@ -252,9 +230,9 @@ const Composer: React.FC<ComposerProps> = ({
                 {getTabText("create-image")}
               </button>
             </TooltipTrigger>
-            {getTabTooltip("create-image") && (
+            {getTabTooltip() && (
               <TooltipContent>
-                <p>{getTabTooltip("create-image")}</p>
+                <p>{getTabTooltip()}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -262,13 +240,13 @@ const Composer: React.FC<ComposerProps> = ({
             <TooltipTrigger asChild>
               <button
                 onClick={() =>
-                  !isTabDisabled("edit-image") && setMode("edit-image")
+                  !isTabDisabled() && setMode("edit-image")
                 }
-                disabled={isTabDisabled("edit-image")}
+                disabled={isTabDisabled()}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
                   mode === "edit-image"
                     ? "bg-blue-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled("edit-image")
+                    : isTabDisabled()
                     ? "text-slate-400 cursor-not-allowed opacity-50"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
@@ -277,9 +255,9 @@ const Composer: React.FC<ComposerProps> = ({
                 {getTabText("edit-image")}
               </button>
             </TooltipTrigger>
-            {getTabTooltip("edit-image") && (
+            {getTabTooltip() && (
               <TooltipContent>
-                <p>{getTabTooltip("edit-image")}</p>
+                <p>{getTabTooltip()}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -287,13 +265,13 @@ const Composer: React.FC<ComposerProps> = ({
             <TooltipTrigger asChild>
               <button
                 onClick={() =>
-                  !isTabDisabled("compose-image") && setMode("compose-image")
+                  !isTabDisabled() && setMode("compose-image")
                 }
-                disabled={isTabDisabled("compose-image")}
+                disabled={isTabDisabled()}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
                   mode === "compose-image"
                     ? "bg-green-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled("compose-image")
+                    : isTabDisabled()
                     ? "text-slate-400 cursor-not-allowed opacity-50"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
@@ -302,9 +280,9 @@ const Composer: React.FC<ComposerProps> = ({
                 {getTabText("compose-image")}
               </button>
             </TooltipTrigger>
-            {getTabTooltip("compose-image") && (
+            {getTabTooltip() && (
               <TooltipContent>
-                <p>{getTabTooltip("compose-image")}</p>
+                <p>{getTabTooltip()}</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -312,13 +290,13 @@ const Composer: React.FC<ComposerProps> = ({
             <TooltipTrigger asChild>
               <button
                 onClick={() =>
-                  !isTabDisabled("create-video") && setMode("create-video")
+                  !isTabDisabled() && setMode("create-video")
                 }
-                disabled={isTabDisabled("create-video")}
+                disabled={isTabDisabled()}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
                   mode === "create-video"
                     ? "bg-purple-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled("create-video")
+                    : isTabDisabled()
                     ? "text-slate-400 cursor-not-allowed opacity-50"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
@@ -327,9 +305,9 @@ const Composer: React.FC<ComposerProps> = ({
                 {getTabText("create-video")}
               </button>
             </TooltipTrigger>
-            {getTabTooltip("create-video") && (
+            {getTabTooltip() && (
               <TooltipContent>
-                <p>{getTabTooltip("create-video")}</p>
+                <p>{getTabTooltip()}</p>
               </TooltipContent>
             )}
           </Tooltip>
