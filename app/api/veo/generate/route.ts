@@ -65,30 +65,46 @@ export async function POST(req: Request) {
         }
     }
 
+    // Construct SDK options
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = {
+    const generateOptions: any = {
       model,
       prompt,
       config: {
         ...(aspectRatio ? { aspectRatio } : {}),
-        ...(negativePrompt ? { negativePrompt } : {}),
         ...(resolution ? { resolution } : {}),
         ...(durationSecondsStr ? { durationSeconds: parseInt(durationSecondsStr) } : {}),
-      },
+      }
     };
 
-    if (images.length > 0) {
-        // If single image, pass as object (backward compatibility)
-        // If multiple, pass as array (for Veo 3.1+)
-        if (images.length === 1) {
-            payload.image = images[0];
-        } else {
-            payload.image = images;
-        }
+    if (negativePrompt) {
+        generateOptions.config.negativePrompt = negativePrompt;
     }
 
-    const operation = await ai.models.generateVideos(payload);
+    if (images.length === 1) {
+        // Official example pattern for single image: direct 'image' property with 'imageBytes'
+        // SDK handles conversion for this top-level field.
+        generateOptions.image = {
+            imageBytes: images[0].imageBytes,
+            mimeType: images[0].mimeType
+        };
+    } else if (images.length > 1) {
+        // Correct structure for Veo 3.1 multi-image input
+        // Providing BOTH fields to satisfy potential SDK transformation logic (imageBytes) 
+        // AND raw API requirements (bytesBase64Encoded) in case of pass-through.
+        generateOptions.config.referenceImages = images.map(img => ({
+            image: {
+                imageBytes: img.imageBytes,
+                bytesBase64Encoded: img.imageBytes,
+                mimeType: img.mimeType
+            },
+            referenceType: "ASSET"
+        }));
+    }
 
+    console.log("Starting Veo generation (SDK) with options:", JSON.stringify(generateOptions, (k, v) => (k === 'imageBytes' || k === 'bytesBase64Encoded') ? '[BASE64]' : v, 2));
+
+    const operation = await ai.models.generateVideos(generateOptions);
     const name = (operation as unknown as { name?: string }).name;
     return NextResponse.json({ name });
   } catch (error: unknown) {

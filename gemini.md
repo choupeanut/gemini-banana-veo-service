@@ -46,8 +46,11 @@ This is an interactive Next.js web application designed to demonstrate and opera
     -   UI rendering logic (Context Bar, History List).
 -   `components/ui/Composer.tsx`: Fixed bottom input area. Contains Prompt input, mode switch buttons (Image/Video), and Submit button.
 -   `components/ui/ChatMessage.tsx`: Renders chat history, supporting Markdown text, image previews, and video players.
--   `app/api/veo/generate/route.ts`: Handles video generation requests, parses multiple images from Multipart Form Data, and encapsulates parameters.
--   `app/api/veo/operation/route.ts`: Handles operation polling, bypassing SDK limitations to directly query API state.
+-   `app/api/veo/generate/route.ts`: Handles video generation requests.
+    -   Parses multiple images from `multipart/form-data`.
+    -   Encapsulates parameters (`resolution`, `durationSeconds`).
+    -   **Technical Fix**: To support Veo 3.1 multi-image reference, it provides both `imageBytes` and `bytesBase64Encoded` in the `referenceImages` payload to satisfy both SDK expectations and raw API requirements.
+-   `app/api/veo/operation/route.ts`: Handles operation polling.
 
 ## 🏗️ Architecture Flow
 

@@ -414,16 +414,19 @@ const VeoStudio: React.FC = () => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
       const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-      // Limit to 3 files max
-      const remainingSlots = 3 - multipleImageFiles.length;
+      
+      // Dynamic limits based on mode
+      const maxImages = mode === "video" ? 3 : 6;
+      const remainingSlots = maxImages - multipleImageFiles.length;
+      
       if (remainingSlots <= 0) {
-          alert("Maximum 3 images allowed.");
+          alert(`Maximum ${maxImages} images allowed in this mode.`);
           return;
       }
       const limitedFiles = imageFiles.slice(0, remainingSlots);
       
       setMultipleImageFiles((prevFiles) =>
-        [...prevFiles, ...limitedFiles].slice(0, 3)
+        [...prevFiles, ...limitedFiles].slice(0, maxImages)
       );
     }
   };
@@ -467,17 +470,21 @@ const VeoStudio: React.FC = () => {
       if (mode === "image") {
          // If dropping single image in image mode, replace single file
          // or if dropping multiple, append? 
-         // Let's support both. For simplicity, just append to multiple
-         // or set single if only 1 and no existing.
          if (limitedFiles.length === 1 && multipleImageFiles.length === 0) {
              setImageFile(limitedFiles[0]);
          } else {
-             // Append to multiple, enforcing limit
-             const remaining = 3 - multipleImageFiles.length;
+             // Append to multiple, enforcing limit (max 6 for image mode)
+             const remaining = 6 - multipleImageFiles.length;
              setMultipleImageFiles(prev => [...prev, ...limitedFiles.slice(0, remaining)]);
          }
       } else if (mode === "video") {
-        setImageFile(limitedFiles[0]);
+        // Enforce limit (max 3 for video mode)
+        if (multipleImageFiles.length < 3) {
+            const remaining = 3 - multipleImageFiles.length;
+            setMultipleImageFiles(prev => [...prev, ...limitedFiles.slice(0, remaining)]);
+        } else if (!imageFile) {
+            setImageFile(limitedFiles[0]);
+        }
       }
     }
   };
@@ -580,9 +587,14 @@ const VeoStudio: React.FC = () => {
         {/* Persistent Context Area (Input Images) - Always visible/accessible */}
         <div className="w-full max-w-2xl mx-auto mb-32 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-stone-200 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-stone-600">
-                        Input Context (Images)
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-stone-600">
+                            Input Context (Images)
+                        </span>
+                        <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded border border-stone-200">
+                            {mode === "video" ? "Max 3 for Veo 3.1" : "Max 6 for Banana Pro"}
+                        </span>
+                    </div>
                     <div className="flex gap-2">
                         {(imageFile || generatedImage || multipleImageFiles.length > 0) && (
                             <button 
@@ -637,11 +649,11 @@ const VeoStudio: React.FC = () => {
                         >
                             <Upload className="w-8 h-8 opacity-60" />
                             <div className="text-sm font-medium">Drop images here or click to upload</div>
-                            <div className="text-xs opacity-60">Up to 3 images</div>
+                            <div className="text-xs opacity-60">Up to {mode === "video" ? "3" : "6"} images</div>
                         </div>
                      ) : (
                         // Has content: Small Add Button (if limit not reached)
-                        (multipleImageFiles.length < 3 && !imageFile) && (
+                        (multipleImageFiles.length < (mode === "video" ? 3 : 6) && !imageFile) && (
                             <div 
                                 className="w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-1 text-stone-400 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all shrink-0"
                                 onClick={() => document.getElementById("multiple-image-input")?.click()}
