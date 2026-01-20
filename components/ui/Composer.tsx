@@ -4,23 +4,18 @@ import React from "react";
 import {
   RotateCcw,
   Image as ImageIcon,
-  Edit,
-  Palette,
   Video,
   Download,
   Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
-  TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
 type StudioMode =
-  | "create-image"
-  | "edit-image"
-  | "compose-image"
-  | "create-video";
+  | "image"
+  | "video";
 
 interface ComposerProps {
   mode: StudioMode;
@@ -34,13 +29,6 @@ interface ComposerProps {
   canStart: boolean;
   isGenerating: boolean;
   startGeneration: () => void;
-
-  imagePrompt: string;
-  setImagePrompt: (value: string) => void;
-  editPrompt: string;
-  setEditPrompt: (value: string) => void;
-  composePrompt: string;
-  setComposePrompt: (value: string) => void;
 
   geminiBusy: boolean;
 
@@ -58,13 +46,6 @@ const Composer: React.FC<ComposerProps> = ({
   canStart,
   isGenerating,
   startGeneration,
-
-  imagePrompt,
-  setImagePrompt,
-  editPrompt,
-  setEditPrompt,
-  composePrompt,
-  setComposePrompt,
   geminiBusy,
   resetAll,
   downloadImage,
@@ -78,29 +59,6 @@ const Composer: React.FC<ComposerProps> = ({
 
   const handleReset = () => {
     resetAll();
-  };
-
-  const getTabText = (tabMode: StudioMode) => {
-    switch (tabMode) {
-      case "create-image":
-        return "Create Image";
-      case "edit-image":
-        return "Edit Image";
-      case "compose-image":
-        return "Compose Image";
-      case "create-video":
-        return "Create Video";
-      default:
-        return "Unknown";
-    }
-  };
-
-  const isTabDisabled = () => {
-    return false;
-  };
-
-  const getTabTooltip = () => {
-    return null;
   };
 
   return (
@@ -128,49 +86,15 @@ const Composer: React.FC<ComposerProps> = ({
           />
         </div> */}
 
-        {mode === "create-video" && (
-          <textarea
+        {/* Input Area */}
+        <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Generate a video with text and frames..."
+            placeholder={mode === "video" ? "Generate a video..." : "Generate or edit an image..."}
             className="w-full bg-transparent focus:outline-none resize-none text-base font-normal placeholder-slate-800/60"
             rows={2}
-          />
-        )}
-
-        {mode === "create-image" && (
-          <textarea
-            value={imagePrompt}
-            onChange={(e) => setImagePrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe the image to create..."
-            className="w-full bg-transparent focus:outline-none resize-none text-base font-normal placeholder-slate-800/60"
-            rows={2}
-          />
-        )}
-
-        {mode === "edit-image" && (
-          <textarea
-            value={editPrompt}
-            onChange={(e) => setEditPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe how to edit the image..."
-            className="w-full bg-transparent focus:outline-none resize-none text-base font-normal placeholder-slate-800/60"
-            rows={2}
-          />
-        )}
-
-        {mode === "compose-image" && (
-          <textarea
-            value={composePrompt}
-            onChange={(e) => setComposePrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe how to combine the images..."
-            className="w-full bg-transparent focus:outline-none resize-none text-base font-normal placeholder-slate-800/60"
-            rows={2}
-          />
-        )}
+        />
 
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-2">
@@ -191,15 +115,7 @@ const Composer: React.FC<ComposerProps> = ({
                 ? "bg-white/50 cursor-not-allowed"
                 : "bg-white/50 hover:bg-white/70 cursor-pointer"
             }`}
-            title={
-              mode === "create-image"
-                ? "Generate Image"
-                : mode === "edit-image"
-                ? "Edit Image"
-                : mode === "compose-image"
-                ? "Compose Image"
-                : "Generate Video"
-            }
+            title="Generate"
           >
             {isGenerating || geminiBusy ? (
               <div className="w-4 h-4 border-2 border-t-transparent border-black rounded-full animate-spin" />
@@ -214,102 +130,35 @@ const Composer: React.FC<ComposerProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() =>
-                  !isTabDisabled() && setMode("create-image")
-                }
-                disabled={isTabDisabled()}
+                onClick={() => setMode("image")}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "create-image"
-                    ? "bg-indigo-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled()
-                    ? "text-slate-400 cursor-not-allowed opacity-50"
+                  mode === "image"
+                    ? "bg-yellow-400/30 text-slate-900 backdrop-blur-sm"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
               >
                 <ImageIcon className="w-4 h-4" aria-hidden="true" />
-                {getTabText("create-image")}
+                <span>Create Image</span>
+                {mode === "image" && <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded border border-yellow-200">🍌 Nano Banana Pro</span>}
               </button>
             </TooltipTrigger>
-            {getTabTooltip() && (
-              <TooltipContent>
-                <p>{getTabTooltip()}</p>
-              </TooltipContent>
-            )}
           </Tooltip>
+          
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() =>
-                  !isTabDisabled() && setMode("edit-image")
-                }
-                disabled={isTabDisabled()}
+                onClick={() => setMode("video")}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "edit-image"
-                    ? "bg-blue-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled()
-                    ? "text-slate-400 cursor-not-allowed opacity-50"
-                    : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
-                }`}
-              >
-                <Edit className="w-4 h-4" />
-                {getTabText("edit-image")}
-              </button>
-            </TooltipTrigger>
-            {getTabTooltip() && (
-              <TooltipContent>
-                <p>{getTabTooltip()}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() =>
-                  !isTabDisabled() && setMode("compose-image")
-                }
-                disabled={isTabDisabled()}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "compose-image"
-                    ? "bg-green-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled()
-                    ? "text-slate-400 cursor-not-allowed opacity-50"
-                    : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
-                }`}
-              >
-                <Palette className="w-4 h-4" />
-                {getTabText("compose-image")}
-              </button>
-            </TooltipTrigger>
-            {getTabTooltip() && (
-              <TooltipContent>
-                <p>{getTabTooltip()}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() =>
-                  !isTabDisabled() && setMode("create-video")
-                }
-                disabled={isTabDisabled()}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "create-video"
+                  mode === "video"
                     ? "bg-purple-400/30 text-slate-900 backdrop-blur-sm"
-                    : isTabDisabled()
-                    ? "text-slate-400 cursor-not-allowed opacity-50"
                     : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
                 }`}
               >
                 <Video className="w-4 h-4" />
-                {getTabText("create-video")}
+                <span>Create Video</span>
+                {mode === "video" && <span className="text-[10px] bg-purple-100 text-purple-800 px-1 rounded border border-purple-200">Veo 3.1</span>}
               </button>
             </TooltipTrigger>
-            {getTabTooltip() && (
-              <TooltipContent>
-                <p>{getTabTooltip()}</p>
-              </TooltipContent>
-            )}
           </Tooltip>
         </div>
       </div>

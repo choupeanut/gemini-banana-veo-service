@@ -13,16 +13,14 @@ import Composer from "@/components/ui/Composer";
 import ChatMessage, { HistoryItem } from "@/components/ui/ChatMessage";
 
 type StudioMode =
-  | "create-image"
-  | "edit-image"
-  | "compose-image"
-  | "create-video";
+  | "image"
+  | "video";
 
 const POLL_INTERVAL_MS = 5000;
 
 const VeoStudio: React.FC = () => {
-  const [mode, setMode] = useState<StudioMode>("create-image");
-  const [prompt, setPrompt] = useState(""); // Video or image prompt
+  const [mode, setMode] = useState<StudioMode>("image");
+  const [prompt, setPrompt] = useState(""); // Unified prompt for all modes
   const [negativePrompt, setNegativePrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [resolution, setResolution] = useState("720p");
@@ -35,30 +33,17 @@ const VeoStudio: React.FC = () => {
 
   // Update selected model when mode changes
   useEffect(() => {
-    if (mode === "create-video") {
+    if (mode === "video") {
       setSelectedModel("veo-3.1-generate-preview");
-    } else if (mode === "edit-image" || mode === "compose-image") {
+    } else {
       setSelectedModel("gemini-3-pro-image-preview");
-    } else if (mode === "create-image") {
-      if (
-        !selectedModel.includes("gemini") &&
-        !selectedModel.includes("imagen")
-      ) {
-        setSelectedModel("gemini-3-pro-image-preview");
-      }
     }
-  }, [mode, selectedModel]);
-
-  // Image generation prompts
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [editPrompt, setEditPrompt] = useState("");
-  const [composePrompt, setComposePrompt] = useState("");
+  }, [mode]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [multipleImageFiles, setMultipleImageFiles] = useState<File[]>([]);
   
   // Busy states
-  const [imagenBusy, setImagenBusy] = useState(false);
   const [geminiBusy, setGeminiBusy] = useState(false);
   
   // Legacy state for Edit Mode context (keeps track of the last generated image for editing)
@@ -93,7 +78,7 @@ const VeoStudio: React.FC = () => {
 
   // Enforce Veo 3.1 constraints
   useEffect(() => {
-    if (mode === "create-video") {
+    if (mode === "video") {
         const hasImages = imageFile || generatedImage || multipleImageFiles.length > 0;
         const isHighRes = resolution === "1080p" || resolution === "4k";
         
@@ -110,50 +95,21 @@ const VeoStudio: React.FC = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [history, isGenerating, imagenBusy, geminiBusy]);
+  }, [history, isGenerating, geminiBusy]);
 
   const canStart = useMemo(() => {
-    if (mode === "create-video") {
-      if (!prompt.trim()) return false;
-      return true;
-    } else if (mode === "create-image") {
-      return imagePrompt.trim() && !imagenBusy && !geminiBusy;
-    } else if (mode === "edit-image") {
-      return editPrompt.trim() && (imageFile || generatedImage) && !geminiBusy;
-    } else if (mode === "compose-image") {
-      const hasExistingImage = imageFile || generatedImage;
-      const hasNewImages = multipleImageFiles.length > 0;
-      return (
-        composePrompt.trim() &&
-        (hasExistingImage || hasNewImages) &&
-        !geminiBusy
-      );
-    }
-    return false;
-  }, [
-    mode,
-    prompt,
-    imageFile,
-    generatedImage,
-    imagePrompt,
-    editPrompt,
-    composePrompt,
-    multipleImageFiles,
-    imagenBusy,
-    geminiBusy,
-  ]);
+    // Basic check: must have prompt and not be busy
+    if (!prompt.trim()) return false;
+    return !isGenerating && !geminiBusy;
+  }, [prompt, isGenerating, geminiBusy]);
 
   const resetAll = () => {
     setPrompt("");
     setNegativePrompt("");
     setAspectRatio("16:9");
-    setImagePrompt("");
-    setEditPrompt("");
-    setComposePrompt("");
     setImageFile(null);
     setMultipleImageFiles([]);
     // We do NOT clear history or generatedImage (context) on reset, just inputs
-    // If the user wants to clear context, they can upload a new image
   };
 
   const addHistoryItem = (item: HistoryItem) => {
@@ -166,106 +122,52 @@ const VeoStudio: React.FC = () => {
     );
   };
 
-  // Imagen helper
-  const generateWithImagen = useCallback(async (loadingId: string) => {
-    setImagenBusy(true);
-    try {
-      const resp = await fetch("/api/imagen/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: imagePrompt }),
-      });
-
-      if (!resp.ok) {
-        throw new Error(`API error: ${resp.status}`);
-      }
-
-      const json = await resp.json();
-
-      if (json?.image?.imageBytes) {
-        const dataUrl = `data:${json.image.mimeType};base64,${json.image.imageBytes}`;
-        setGeneratedImage(dataUrl); // For edit context
-        updateHistoryItem(loadingId, {
-            type: "image",
-            mediaUrl: dataUrl,
-            isLoading: false,
-        });
-      } else if (json?.error) {
-        throw new Error(json.error);
-      }
-    } catch (e: unknown) {
-      console.error("Error in generateWithImagen:", e);
-      updateHistoryItem(loadingId, {
-        type: "error",
-        content: e instanceof Error ? e.message : "Failed to generate image",
-        isLoading: false,
-      });
-    } finally {
-      setImagenBusy(false);
-    }
-  }, [imagePrompt]);
-
-  // Gemini image generation helper
-  const generateWithGemini = useCallback(async (loadingId: string) => {
+  const handleImageGeneration = useCallback(async (loadingId: string) => {
     setGeminiBusy(true);
     try {
-      const resp = await fetch("/api/gemini/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: imagePrompt, model: selectedModel }),
-      });
+      let resp;
+      const hasImages = imageFile || generatedImage || multipleImageFiles.length > 0;
 
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.error || `API error: ${resp.status}`);
+      if (!hasImages) {
+          // Text-to-Image
+          resp = await fetch("/api/gemini/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt, model: selectedModel }),
+          });
+      } else {
+          // Image-to-Image (Edit/Compose)
+          const form = new FormData();
+          form.append("prompt", prompt);
+          form.append("model", selectedModel);
+
+          if (imageFile) form.append("imageFiles", imageFile);
+          multipleImageFiles.forEach(f => form.append("imageFiles", f));
+
+          if (generatedImage && !imageFile && multipleImageFiles.length === 0) {
+             // Convert base64 to blob for context
+             try {
+                const [meta, b64] = generatedImage.split(",");
+                const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
+                const byteCharacters = atob(b64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mime });
+                form.append("imageFiles", blob, "context.png");
+             } catch (e) {
+                 console.error("Failed to process context image", e);
+             }
+          }
+
+          // Use edit endpoint for multimodal image generation
+          resp = await fetch("/api/gemini/edit", {
+            method: "POST",
+            body: form,
+          });
       }
-
-      const json = await resp.json();
-
-      if (json?.image?.imageBytes) {
-        const dataUrl = `data:${json.image.mimeType};base64,${json.image.imageBytes}`;
-        setGeneratedImage(dataUrl); // For edit context
-        updateHistoryItem(loadingId, {
-            type: "image",
-            mediaUrl: dataUrl,
-            isLoading: false,
-        });
-      } else if (json?.error) {
-        throw new Error(json.error);
-      }
-    } catch (e: unknown) {
-      console.error("Error in generateWithGemini:", e);
-      updateHistoryItem(loadingId, {
-        type: "error",
-        content: e instanceof Error ? e.message : "Failed to generate image",
-        isLoading: false,
-      });
-    } finally {
-      setGeminiBusy(false);
-    }
-  }, [imagePrompt, selectedModel]);
-
-  // Gemini image edit helper
-  const editWithGemini = useCallback(async (loadingId: string) => {
-    setGeminiBusy(true);
-    try {
-      const form = new FormData();
-      form.append("prompt", editPrompt);
-      form.append("model", selectedModel);
-
-      if (imageFile) {
-        form.append("imageFile", imageFile);
-      } else if (generatedImage) {
-        const [meta, b64] = generatedImage.split(",");
-        const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
-        form.append("imageBase64", b64);
-        form.append("imageMimeType", mime);
-      }
-
-      const resp = await fetch("/api/gemini/edit", {
-        method: "POST",
-        body: form,
-      });
 
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({}));
@@ -286,117 +188,33 @@ const VeoStudio: React.FC = () => {
         throw new Error(json.error);
       }
     } catch (e: unknown) {
-      console.error("Error in editWithGemini:", e);
+      console.error("Error in handleImageGeneration:", e);
       updateHistoryItem(loadingId, {
         type: "error",
-        content: e instanceof Error ? e.message : "Failed to edit image",
+        content: e instanceof Error ? e.message : "Failed to generate image",
         isLoading: false,
       });
     } finally {
       setGeminiBusy(false);
     }
-  }, [editPrompt, imageFile, generatedImage, selectedModel]);
-
-  // Gemini image compose helper
-  const composeWithGemini = useCallback(async (loadingId: string) => {
-    setGeminiBusy(true);
-    try {
-      const form = new FormData();
-      form.append("prompt", composePrompt);
-      form.append("model", selectedModel);
-
-      // Add newly uploaded images first
-      for (const file of multipleImageFiles) {
-        form.append("imageFiles", file);
-      }
-
-      // Include existing image last (if any)
-      if (imageFile) {
-        form.append("imageFiles", imageFile);
-      } else if (generatedImage) {
-        const [meta, b64] = generatedImage.split(",");
-        const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
-        const byteCharacters = atob(b64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mime });
-
-        const existingImageFile = new File([blob], "existing-image.png", {
-          type: mime,
-        });
-        form.append("imageFiles", existingImageFile);
-      }
-
-      const resp = await fetch("/api/gemini/edit", {
-        method: "POST",
-        body: form,
-      });
-
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.error || `API error: ${resp.status}`);
-      }
-
-      const json = await resp.json();
-
-      if (json?.image?.imageBytes) {
-        const dataUrl = `data:${json.image.mimeType};base64,${json.image.imageBytes}`;
-        setGeneratedImage(dataUrl); // Update context
-        updateHistoryItem(loadingId, {
-            type: "image",
-            mediaUrl: dataUrl,
-            isLoading: false,
-        });
-      } else if (json?.error) {
-        throw new Error(json.error);
-      }
-    } catch (e: unknown) {
-      console.error("Error in composeWithGemini:", e);
-      updateHistoryItem(loadingId, {
-        type: "error",
-        content: e instanceof Error ? e.message : "Failed to compose images",
-        isLoading: false,
-      });
-    } finally {
-      setGeminiBusy(false);
-    }
-  }, [composePrompt, multipleImageFiles, imageFile, generatedImage, selectedModel]);
+  }, [prompt, selectedModel, imageFile, multipleImageFiles, generatedImage]);
 
   // Start generation based on current mode
   const startGeneration = useCallback(async () => {
     if (!canStart) return;
-
-    const userContent =
-      mode === "create-video"
-        ? prompt
-        : mode === "create-image"
-        ? imagePrompt
-        : mode === "edit-image"
-        ? editPrompt
-        : composePrompt;
-
-    const inputImages: string[] = [];
-    if (mode === "edit-image" || mode === "compose-image") {
-        if (imageFile) inputImages.push(URL.createObjectURL(imageFile));
-        if (multipleImageFiles.length > 0) {
-            multipleImageFiles.forEach(f => inputImages.push(URL.createObjectURL(f)));
-        }
-        if (!imageFile && generatedImage) {
-            inputImages.push(generatedImage);
-        }
-    }
 
     // 1. Add User Message
     addHistoryItem({
       id: Date.now().toString(),
       role: "user",
       type: "text",
-      content: userContent,
+      content: prompt,
       timestamp: Date.now(),
-      inputImages: inputImages.length > 0 ? inputImages : undefined
+      inputImages: [
+          ...(imageFile ? [URL.createObjectURL(imageFile)] : []),
+          ...multipleImageFiles.map(f => URL.createObjectURL(f)),
+          ...(generatedImage && !imageFile ? [generatedImage] : [])
+      ]
     });
 
     // 2. Add Loading Model Message
@@ -410,7 +228,7 @@ const VeoStudio: React.FC = () => {
       modelName: selectedModel
     });
 
-    if (mode === "create-video") {
+    if (mode === "video") {
       setIsGenerating(true);
 
       const form = new FormData();
@@ -422,23 +240,18 @@ const VeoStudio: React.FC = () => {
       if (durationSeconds) form.append("durationSeconds", durationSeconds);
 
       // Handle multiple images for Veo 3.1
-      // 1. New multiple uploads
       multipleImageFiles.forEach((file) => {
         form.append("imageFiles", file);
       });
 
-      // 2. Single legacy upload (if any)
       if (imageFile) {
         form.append("imageFiles", imageFile);
       } 
-      // 3. Generated context (if no new file uploaded, or as additional context)
       else if (generatedImage) {
-          const [meta, b64] = generatedImage.split(",");
-          const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
-          // We need to send this as a file or base64. 
-          // Let's send as base64 field if it's the only one, or convert to file if mixing.
-          // To keep it simple for the backend, let's try to convert to blob/file
+          // Convert base64 to blob
           try {
+            const [meta, b64] = generatedImage.split(",");
+            const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
             const byteCharacters = atob(b64);
             const byteNumbers = new Array(byteCharacters.length);
             for (let i = 0; i < byteCharacters.length; i++) {
@@ -473,44 +286,26 @@ const VeoStudio: React.FC = () => {
             isLoading: false
         });
       }
-    } else if (mode === "create-image") {
-      if (selectedModel.includes("imagen")) {
-        await generateWithImagen(loadingId);
-      } else {
-        await generateWithGemini(loadingId);
-      }
-    } else if (mode === "edit-image") {
-      await editWithGemini(loadingId);
-    } else if (mode === "compose-image") {
-      await composeWithGemini(loadingId);
+    } else {
+      // Unified Image Generation
+      await handleImageGeneration(loadingId);
     }
     
-    // Clear inputs after submission (optional, but good for chat flow)
+    // Clear inputs after submission
     setPrompt("");
-    setImagePrompt("");
-    setEditPrompt("");
-    setComposePrompt("");
-    // We DON'T clear selected images immediately to allow easy tweaks, 
-    // OR we clear them if we want to force new selection.
-    // Let's keep images for now.
+    // We keep images to allow iterative refinement, unless user clears them.
 
   }, [
     canStart,
     mode,
     prompt,
-    imagePrompt,
-    editPrompt,
-    composePrompt,
     selectedModel,
     negativePrompt,
     aspectRatio,
     imageFile,
     generatedImage,
     multipleImageFiles,
-    generateWithImagen,
-    generateWithGemini,
-    editWithGemini,
-    composeWithGemini,
+    handleImageGeneration,
     resolution,
     durationSeconds,
   ]);
@@ -669,11 +464,19 @@ const VeoStudio: React.FC = () => {
     const limitedFiles = imageFiles.slice(0, 10);
 
     if (limitedFiles.length > 0) {
-      if (mode === "compose-image") {
-        setMultipleImageFiles((prevFiles) =>
-          [...prevFiles, ...limitedFiles].slice(0, 10)
-        );
-      } else if (mode === "edit-image" || mode === "create-video") {
+      if (mode === "image") {
+         // If dropping single image in image mode, replace single file
+         // or if dropping multiple, append? 
+         // Let's support both. For simplicity, just append to multiple
+         // or set single if only 1 and no existing.
+         if (limitedFiles.length === 1 && multipleImageFiles.length === 0) {
+             setImageFile(limitedFiles[0]);
+         } else {
+             // Append to multiple, enforcing limit
+             const remaining = 3 - multipleImageFiles.length;
+             setMultipleImageFiles(prev => [...prev, ...limitedFiles.slice(0, remaining)]);
+         }
+      } else if (mode === "video") {
         setImageFile(limitedFiles[0]);
       }
     }
@@ -693,66 +496,18 @@ const VeoStudio: React.FC = () => {
         {history.length === 0 && (
             <div className="w-full max-w-3xl mt-20">
               <div className="flex flex-col items-center justify-center gap-6 text-center px-4">
-                  {mode === "create-video" ? (
+                  {mode === "video" ? (
                     <Film className="w-20 h-20 text-stone-300" />
                   ) : (
                     <ImageIcon className="w-20 h-20 text-stone-300" />
                   )}
                   <h2 className="text-2xl font-semibold text-stone-600">
-                    {mode === "create-video" ? "Create Video" : "Generate Images"}
+                    {mode === "video" ? "Create Video" : "Generate Images"}
                   </h2>
                   <p className="text-stone-500 max-w-md">
                     Select a mode below and type a prompt to get started. 
-                    {mode === "edit-image" && " Upload an image to edit."}
-                    {mode === "compose-image" && " Upload multiple images to combine."}
+                    Upload images to guide generation.
                   </p>
-
-                  {/* Dropzones for Uploads (Only when history is empty or relevant) */}
-                  <div className="w-full mt-8">
-                     {/* Single Image Upload (Edit/Video) */}
-                     {((mode === "edit-image" && !imageFile && !generatedImage) ||
-                        (mode === "create-video" && !imageFile && !generatedImage)) && (
-                        <div
-                        className="rounded-lg border-2 border-dashed border-stone-300 p-8 cursor-pointer hover:bg-stone-50 transition-colors bg-white/50"
-                        onClick={() => document.getElementById("single-image-input")?.click()}
-                        >
-                            <div className="flex flex-col items-center gap-3 text-stone-600">
-                                <Upload className="w-8 h-8" />
-                                <div className="font-medium">Drop an image here or click to upload</div>
-                            </div>
-                        </div>
-                     )}
-
-                     {/* Multiple Image Upload (Compose) */}
-                     {mode === "compose-image" && (
-                        <div className="flex flex-col gap-4">
-                            <div
-                                className="rounded-lg border-2 border-dashed border-stone-300 p-8 cursor-pointer hover:bg-stone-50 transition-colors bg-white/50"
-                                onClick={() => document.getElementById("multiple-image-input")?.click()}
-                            >
-                                <div className="flex flex-col items-center gap-3 text-stone-600">
-                                    <Upload className="w-8 h-8" />
-                                    <div className="font-medium">Drop multiple images here</div>
-                                </div>
-                            </div>
-                            
-                            {multipleImageFiles.length > 0 && (
-                                <div className="flex flex-wrap gap-4 justify-center">
-                                {multipleImageFiles.map((file, index) => (
-                                    <div key={index} className="w-20 h-20 rounded-lg overflow-hidden border border-stone-300 shadow-sm relative">
-                                    <Image
-                                        src={URL.createObjectURL(file)}
-                                        alt={`Preview ${index}`}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    </div>
-                                ))}
-                                </div>
-                            )}
-                        </div>
-                     )}
-                  </div>
               </div>
             </div>
         )}
@@ -770,7 +525,7 @@ const VeoStudio: React.FC = () => {
         </div>
 
         {/* Video Parameters Bar */}
-        {mode === "create-video" && (
+        {mode === "video" && (
             <div className="w-full max-w-2xl mx-auto mb-4 p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-stone-200 flex flex-wrap gap-4 justify-center items-center text-xs text-stone-700">
                 <div className="flex items-center gap-2">
                     <label className="font-medium">Resolution:</label>
@@ -822,29 +577,13 @@ const VeoStudio: React.FC = () => {
             </div>
         )}
 
-        {/* Persistent Context Area (Input Images) */}
-        {(mode === "edit-image" || mode === "compose-image" || mode === "create-video") && (
-            <div className="w-full max-w-2xl mx-auto mb-32 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-stone-200 shadow-sm">
+        {/* Persistent Context Area (Input Images) - Always visible/accessible */}
+        <div className="w-full max-w-2xl mx-auto mb-32 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-stone-200 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-stone-600">
-                        {mode === "compose-image" || mode === "create-video" ? "Input Images" : "Reference Image"}
+                        Input Context (Images)
                     </span>
                     <div className="flex gap-2">
-                        {mode === "compose-image" || mode === "create-video" ? (
-                            <button 
-                                onClick={() => document.getElementById("multiple-image-input")?.click()}
-                                className="text-xs flex items-center gap-1 bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-md text-stone-700 transition-colors"
-                            >
-                                <Upload size={12} /> Add Images
-                            </button>
-                        ) : (
-                            <button 
-                                onClick={() => document.getElementById("single-image-input")?.click()}
-                                className="text-xs flex items-center gap-1 bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-md text-stone-700 transition-colors"
-                            >
-                                <Upload size={12} /> {imageFile || generatedImage ? "Change Image" : "Upload Image"}
-                            </button>
-                        )}
                         {(imageFile || generatedImage || multipleImageFiles.length > 0) && (
                             <button 
                                 onClick={() => {
@@ -860,69 +599,61 @@ const VeoStudio: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Image Previews */}
-                <div className="flex flex-wrap gap-3">
-                    {/* Main Image (File or Generated) - Only for Edit Image now */}
-                    {(imageFile || generatedImage) && mode === "edit-image" && (
-                        <div className="relative h-24 aspect-video rounded-lg overflow-hidden border border-stone-300 bg-stone-100">
-                             <Image
+                {/* Image Previews & Dropzone */}
+                <div className="flex flex-wrap gap-3 items-center">
+                     {/* Show legacy/single generated image as one of the inputs if exists */}
+                     {(imageFile || generatedImage) && (
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-stone-300 bg-stone-100 group shrink-0">
+                                <Image
                                 src={imageFile ? URL.createObjectURL(imageFile) : generatedImage!}
                                 alt="Context"
                                 fill
-                                className="object-contain"
+                                className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/50 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                Base
+                            </div>
+                        </div>
+                     )}
+                     
+                     {/* Multiple uploaded images */}
+                     {multipleImageFiles.map((file, idx) => (
+                        <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-stone-300 bg-stone-100 shrink-0">
+                                <Image
+                                src={URL.createObjectURL(file)}
+                                alt={`Input ${idx}`}
+                                fill
+                                className="object-cover"
                             />
                         </div>
-                    )}
-                    
-                    {/* Compose/Video Mode Images */}
-                    {(mode === "compose-image" || mode === "create-video") && (
-                        <>
-                             {/* Show legacy/single generated image as one of the inputs if exists */}
-                             {(imageFile || generatedImage) && (
-                                <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 bg-stone-100 group">
-                                     <Image
-                                        src={imageFile ? URL.createObjectURL(imageFile) : generatedImage!}
-                                        alt="Context"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-black/50 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Base
-                                    </div>
-                                </div>
-                             )}
-                             {multipleImageFiles.map((file, idx) => (
-                                <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 bg-stone-100">
-                                     <Image
-                                        src={URL.createObjectURL(file)}
-                                        alt={`Input ${idx}`}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                </div>
-                             ))}
-                             {/* Empty State for Compose/Video */}
-                             {!imageFile && !generatedImage && multipleImageFiles.length === 0 && (
-                                <div className="text-sm text-stone-400 italic py-2">
-                                    No images selected. Upload images to provide context.
-                                </div>
-                             )}
-                        </>
-                    )}
+                     ))}
 
-                    {/* Empty State for Edit Image */}
-                    {!imageFile && !generatedImage && mode === "edit-image" && (
-                         <div 
-                            onClick={() => document.getElementById("single-image-input")?.click()}
-                            className="w-full h-24 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-1 text-stone-400 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all"
-                         >
-                            <Upload size={20} />
-                            <span className="text-xs">Click to upload reference image</span>
-                         </div>
-                    )}
+                     {/* Dropzone Card (Add Button) */}
+                     {(!imageFile && !generatedImage && multipleImageFiles.length === 0) ? (
+                        // Empty State: Big Dropzone
+                        <div 
+                            className="w-full h-32 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-2 text-stone-500 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all"
+                            onClick={() => document.getElementById("multiple-image-input")?.click()}
+                        >
+                            <Upload className="w-8 h-8 opacity-60" />
+                            <div className="text-sm font-medium">Drop images here or click to upload</div>
+                            <div className="text-xs opacity-60">Up to 3 images</div>
+                        </div>
+                     ) : (
+                        // Has content: Small Add Button (if limit not reached)
+                        (multipleImageFiles.length < 3 && !imageFile) && (
+                            <div 
+                                className="w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-1 text-stone-400 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all shrink-0"
+                                onClick={() => document.getElementById("multiple-image-input")?.click()}
+                                title="Add more images"
+                            >
+                                <Upload className="w-6 h-6" />
+                                <span className="text-[10px]">Add</span>
+                            </div>
+                        )
+                     )}
                 </div>
-            </div>
-        )}
+        </div>
 
       </div>
 
@@ -952,18 +683,22 @@ const VeoStudio: React.FC = () => {
         prompt={prompt}
         setPrompt={setPrompt}
         canStart={canStart}
-        isGenerating={isGenerating || imagenBusy || geminiBusy}
+        isGenerating={isGenerating || geminiBusy}
         startGeneration={startGeneration}
-        imagePrompt={imagePrompt}
-        setImagePrompt={setImagePrompt}
-        editPrompt={editPrompt}
-        setEditPrompt={setEditPrompt}
-        composePrompt={composePrompt}
-        setComposePrompt={setComposePrompt}
         geminiBusy={geminiBusy}
         resetAll={resetAll}
         downloadImage={downloadImage}
       />
+
+      {/* Fixed Credits (Bottom Right) */}
+      <div className="fixed bottom-4 right-4 z-50 text-xs text-stone-400 max-w-[300px] leading-tight hidden md:block text-right">
+          <p>
+              Credit: <a href="https://github.com/choupeanut/gemini-banana-veo-service" target="_blank" rel="noopener noreferrer" className="hover:text-stone-600 underline decoration-stone-300">Peanut Chou</a>
+          </p>
+          <p className="mt-1 opacity-70">
+              forked from: <a href="https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart" target="_blank" rel="noopener noreferrer" className="hover:text-stone-600 underline decoration-stone-300 text-[10px]">google-gemini/veo-3-nano-banana-gemini-api-quickstart</a>
+          </p>
+      </div>
     </div>
   );
 };

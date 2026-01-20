@@ -1,78 +1,76 @@
-# Gemini API Veo 3.1 Quickstart & Studio
+# Gemini Banana Veo Service (Quickstart & Studio)
 
-這是一個基於 Next.js 的互動式網頁應用程式，專為展示與操作 Google Gemini API 的多模態生成能力而設計，特別聚焦於 **Veo 3.1** 影片生成模型的進階功能。
+This is an interactive Next.js web application designed to demonstrate and operate Google Gemini API's multimodal generation capabilities, specifically focusing on the advanced features of the **Veo 3.1** video generation model and **Nano Banana Pro** (Gemini 3 Pro) image generation.
 
-## ✨ 目前功能
+## ✨ Key Features
 
-### 1. 影片生成 (Video Generation) - Veo 3.1 Preview
--   **模型**: 預設使用 `veo-3.1-generate-preview`。
--   **多模態輸入**:
-    -   支援 **文字提示 (Text Prompt)**。
-    -   支援 **多張參考圖片 (Multi-Image)** 上傳（最多 3 張），用於 Image-to-Video 生成。
--   **參數控制**:
-    -   **解析度 (Resolution)**: 720p (預設), 1080p, 4K。
-    -   **長度 (Duration)**: 4s, 6s, 8s。
-    -   **顯示比例 (Aspect Ratio)**: 16:9, 9:16。
--   **強制約束邏輯**: 當選擇高解析度 (1080p/4K) 或上傳了參考圖片時，系統會自動鎖定影片長度為 **8 秒**，以符合模型規格。
--   **對話式介面**: 生成結果以聊天氣泡形式呈現，保留歷史紀錄，並支援影片下載。
+### 1. Video Generation - Veo 3.1 Preview
+-   **Model**: Defaults to `veo-3.1-generate-preview`.
+-   **Multimodal Input**:
+    -   **Text Prompt**: Describe the video content.
+    -   **Multi-Image References**: Supports uploading up to 3 reference images for Image-to-Video generation to maintain visual consistency.
+-   **Advanced Parameter Control**:
+    -   **Resolution**: 720p (Default), 1080p, 4K.
+    -   **Duration**: 4s, 6s, 8s.
+    -   **Aspect Ratio**: 16:9, 9:16.
+-   **Smart Constraints**: Automatically locks video duration to **8 seconds** when High Resolution (1080p/4K) is selected or reference images are uploaded, ensuring compliance with model specifications.
+-   **Comprehensive Feedback**: Displays detailed API error messages (e.g., Safety RAI Reasons) to help users understand generation failures.
 
-### 2. 圖片生成與編輯 (Image Generation & Editing)
--   **Create Image**: 使用 Imagen 3 或 Gemini 3 Pro 生成圖片。
--   **Edit Image**: 上傳圖片並透過文字指令進行編輯。
--   **Compose Image**: 上傳多張圖片進行合成與創作。
--   **Context Management**: 支援保留上一張生成的圖片作為後續操作的上下文。
+### 2. Image Generation - Nano Banana Pro
+-   **Model**: Uses `gemini-3-pro-image-preview`.
+-   **Unified Mode**: Consolidates Create, Edit, and Compose workflows into a single **Image** mode.
+-   **Smart Logic**:
+    -   **Text-to-Image**: Generates from text prompt if no images are uploaded.
+    -   **Image-to-Image**: Automatically switches to edit or composition mode if images (single or multiple) are uploaded.
 
-### 3. 使用者介面 (UI/UX)
--   **Persistent Context Bar**: 在 Create Video 等模式下，提供常駐的圖片管理列，方便隨時新增、預覽或清除參考圖片。
--   **Video Parameters Bar**: 提供直覺的下拉選單來調整影片參數。
--   **Polling Feedback**: 完整的 API 狀態輪詢與錯誤處理，能顯示具體的安全性攔截 (RAI) 原因。
+### 3. User Interface (UI/UX)
+-   **Unified Context Bar**: A centralized image management area supporting drag-and-drop uploads, thumbnail previews, and clearing, available across all modes.
+-   **Video Parameters Bar**: A dedicated parameter configuration bar for Video mode, providing intuitive dropdown menus.
+-   **Conversational History**: Results are displayed as chat bubbles, preserving the creative history with infinite scroll and download support.
+-   **Fixed Credits**: Fixed section at the bottom right displaying project source and author information.
 
-## 🛠️ 程式規格
+## 🛠️ Technical Specifications
 
-### 技術堆疊
+### Tech Stack
 -   **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS.
 -   **Backend**: Next.js API Routes (Route Handlers).
--   **SDK**: 直接使用 REST API (`fetch`) 呼叫 Google Generative Language API (解決部分 SDK 相容性問題)。
--   **State Management**: React `useState`, `useReducer` (History), `useContext` (implied).
+-   **API Integration**:
+    -   Uses `@google/genai` SDK for standard generation requests.
+    -   Uses direct `fetch` calls to Google REST API for long-running operations (Veo 3.1) to ensure correct parsing of the latest `generatedSamples` response structure.
 
-### 關鍵檔案結構
--   `app/page.tsx`: 主應用程式頁面。包含所有狀態管理 (`history`, `mode`, `parameters`)、API 呼叫邏輯 (`startGeneration`)、以及主要 UI 佈局 (`Context Bar`, `Parameters Bar`)。
--   `components/ui/Composer.tsx`: 底部固定的輸入區塊。包含 Prompt 輸入框與送出按鈕。
--   `components/ui/ChatMessage.tsx`: 負責渲染對話紀錄，包含文字、圖片預覽與影片播放器。
--   `app/api/veo/generate/route.ts`: 處理影片生成請求。
-    -   解析 `FormData` 中的多張圖片 (`imageFiles`)。
-    -   處理 `resolution`, `durationSeconds` 等參數並封裝至 `config`。
-    -   呼叫 Google API 啟動生成任務。
--   `app/api/veo/operation/route.ts`: 處理長執行任務 (Long-running Operation) 的狀態輪詢。
-    -   使用 REST API 直接查詢 Operation 狀態。
-    -   回傳 `generatedSamples` 或 `generatedVideos` 中的影片 URI。
+### Key Files
+-   `app/page.tsx`: Main application entry point. Contains:
+    -   Global state management (`mode`, `history`, `parameters`).
+    -   Constraint logic (`useEffect`).
+    -   API integration logic (`startGeneration`, `poll`).
+    -   UI rendering logic (Context Bar, History List).
+-   `components/ui/Composer.tsx`: Fixed bottom input area. Contains Prompt input, mode switch buttons (Image/Video), and Submit button.
+-   `components/ui/ChatMessage.tsx`: Renders chat history, supporting Markdown text, image previews, and video players.
+-   `app/api/veo/generate/route.ts`: Handles video generation requests, parses multiple images from Multipart Form Data, and encapsulates parameters.
+-   `app/api/veo/operation/route.ts`: Handles operation polling, bypassing SDK limitations to directly query API state.
 
-## 🏗️ 程式架構
+## 🏗️ Architecture Flow
 
-### 前端流程
-1.  **User Input**: 使用者在 `Composer` 輸入文字，並透過 `Context Bar` 上傳圖片。
-2.  **Validation**: `canStart` 檢查必要條件（如 Prompt 是否為空）。
-3.  **Submission**: `startGeneration` 收集所有狀態（Prompt, Images, Params），打包成 `FormData`。
-4.  **API Call**: 發送 POST 請求至 `/api/veo/generate`。
-5.  **Polling**: 取得 Operation Name 後，前端啟動輪詢機制 (`poll` function)，每 5 秒呼叫 `/api/veo/operation`。
-6.  **Rendering**: 
-    -   生成中：顯示 Loading 狀態與模型訊息。
-    -   完成：更新 `history` 狀態，`ChatMessage` 顯示影片播放器。
-    -   錯誤：顯示 API 回傳的具體錯誤訊息（如 RAI 過濾）。
+1.  **Initialization**: User selects mode (Image/Video).
+2.  **Input**: User enters a prompt and uploads reference images via the Context Bar.
+3.  **Validation & Constraints**:
+    -   Frontend `useEffect` monitors parameter changes and automatically corrects invalid settings (e.g., enforcing 8s duration).
+    -   `canStart` checks for necessary conditions.
+4.  **Submission**: `startGeneration` packages data based on the mode:
+    -   **Video**: Calls `/api/veo/generate` with all images and parameters.
+    -   **Image**: Calls `/api/gemini/generate` (text only) or `/api/gemini/edit` (with images).
+5.  **Backend Processing**: Route Handlers convert data formats and call Google APIs.
+6.  **Polling (Video Only)**: Frontend retrieves the Operation Name and polls `/api/veo/operation` every 5 seconds until the task completes or fails.
+7.  **Display**: Updates `history` state, and the interface instantly renders the new chat bubble.
 
-### 後端邏輯
--   **Generate Route**: 負責將前端的 `multipart/form-data` 轉換為 Gemini API 需要的 JSON payload。特別處理了多圖片的 Base64 轉換與陣列封裝。
--   **Operation Route**: 繞過 SDK 可能的型別問題，直接透過 HTTP GET 請求查詢 Google Operation API，確保能正確解析 Veo 3.1 的回應結構 (`generatedSamples`)。
+## 🚀 Deployment & Build
 
-## 🚀 部署
-
-專案包含 `Dockerfile`，支援容器化部署。
-建議使用 Docker Compose 或直接 Build & Run。
+The project includes a standard `Dockerfile` supporting containerized deployment.
 
 ```bash
-# Build
-docker build -t veo-studio .
+# 1. Build Docker Image
+docker build -t gemini-banana-veo-service .
 
-# Run
-docker run -p 3000:3000 -e GEMINI_API_KEY=your_key veo-studio
+# 2. Run Container (API Key required)
+docker run -p 3000:3000 -e GEMINI_API_KEY=your_key gemini-banana-veo-service
 ```
