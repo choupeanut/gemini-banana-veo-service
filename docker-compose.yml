@@ -2,7 +2,7 @@ version: '3'
 
 services:
   veo-studio:
-    image: peanutchou/veo-studio
+    image: peanutchou/gemini-banana-veo-service:latest
     container_name: veo-studio
     restart: always
     ports:
