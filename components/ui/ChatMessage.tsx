@@ -1,19 +1,18 @@
 import React from "react";
 import Image from "next/image";
-import { Loader2, AlertCircle, User, Bot } from "lucide-react";
+import { Loader2, AlertCircle, User, Sparkles } from "lucide-react";
 import VideoPlayer from "./VideoPlayer";
 
 export type HistoryItem = {
   id: string;
   role: "user" | "model";
   type: "text" | "image" | "video" | "error";
-  content?: string; // Prompt text or error message
+  content?: string; 
   mediaUrl?: string;
   isLoading?: boolean;
   timestamp: number;
   modelName?: string;
-  // For compose/edit modes
-  inputImages?: string[]; // Array of blob URLs
+  inputImages?: string[]; 
 };
 
 interface ChatMessageProps {
@@ -26,41 +25,45 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onDownload }) => {
 
   return (
     <div
-      className={`flex w-full gap-4 p-6 ${
-        isUser ? "bg-white/5" : "bg-transparent"
-      } rounded-xl mb-4 transition-all`}
+      className={`flex w-full gap-5 p-6 rounded-2xl mb-2 transition-all duration-500 animate-in fade-in slide-in-from-bottom-2 ${
+        isUser ? "bg-transparent" : "bg-card/20 border border-white/5"
+      }`}
     >
       <div className="flex-shrink-0 mt-1">
         <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            isUser ? "bg-stone-700 text-white" : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+          className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ring-1 ring-white/10 ${
+            isUser 
+                ? "bg-stone-800 text-stone-400" 
+                : "bg-gradient-to-br from-primary to-blue-600 text-white"
           }`}
         >
-          {isUser ? <User size={16} /> : <Bot size={16} />}
+          {isUser ? <User size={18} /> : <Sparkles size={18} />}
         </div>
       </div>
 
-      <div className="flex-grow min-w-0 space-y-3">
+      <div className="flex-grow min-w-0 space-y-2">
         {/* Header */}
-        <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-stone-700 dark:text-stone-200">
-            {isUser ? "You" : item.modelName || "Model"}
+        <div className="flex items-center gap-3">
+            <span className="font-bold text-sm text-foreground">
+            {isUser ? "You" : "Gemini AI"}
             </span>
-            <span className="text-xs text-stone-400">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
             {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
         </div>
 
         {/* Content */}
-        <div className="text-stone-800 dark:text-stone-200 whitespace-pre-wrap leading-relaxed">
-          {item.content && <p>{item.content}</p>}
-        </div>
+        {item.content && (
+            <div className="text-base text-stone-300 whitespace-pre-wrap leading-relaxed max-w-prose">
+                {item.content}
+            </div>
+        )}
 
         {/* Input Images (for User) */}
         {isUser && item.inputImages && item.inputImages.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-3">
             {item.inputImages.map((img, idx) => (
-              <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-stone-200">
+              <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-white/10 shadow-sm opacity-80 hover:opacity-100 transition-opacity">
                 <Image
                   src={img}
                   alt={`Input ${idx}`}
@@ -74,38 +77,44 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onDownload }) => {
 
         {/* Loading State */}
         {item.isLoading && (
-          <div className="flex items-center gap-2 text-stone-500 animate-pulse">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">Generating content...</span>
+          <div className="flex items-center gap-3 py-4 text-primary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm font-medium animate-pulse">
+                {item.modelName?.includes("veo") ? "Rendering video frames..." : "Dreaming up pixels..."}
+            </span>
           </div>
         )}
 
         {/* Media Content (Image/Video) */}
         {!item.isLoading && item.mediaUrl && (
-            <div className="mt-3">
+            <div className="mt-4">
                 {item.type === "image" && (
-                    <div className="relative w-full max-w-md rounded-lg overflow-hidden border border-stone-200 shadow-sm group">
+                    <div className="relative w-full max-w-xl rounded-xl overflow-hidden border border-white/10 shadow-2xl group bg-black/50">
                         <Image
                             src={item.mediaUrl}
                             alt="Generated content"
-                            width={800}
-                            height={600}
-                            className="w-full h-auto object-contain bg-stone-50"
+                            width={1024}
+                            height={1024}
+                            className="w-full h-auto object-contain"
                         />
                         {onDownload && (
-                            <button
-                                onClick={() => onDownload(item.mediaUrl!, `generated-${item.id}.png`)}
-                                className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Download"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                            </button>
+                            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-end p-4">
+                                <button
+                                    onClick={() => onDownload(item.mediaUrl!, `generated-${item.id}.png`)}
+                                    className="flex items-center gap-2 bg-white text-black font-semibold text-xs py-2 px-4 rounded-full shadow-lg hover:scale-105 transition-transform"
+                                >
+                                    Download
+                                </button>
+                            </div>
                         )}
                     </div>
                 )}
                 {item.type === "video" && (
-                    <div className="w-full max-w-md">
-                        <VideoPlayer src={item.mediaUrl} />
+                    <div className="w-full max-w-xl rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-black">
+                        <VideoPlayer 
+                            src={item.mediaUrl!} 
+                            onDownload={() => onDownload && onDownload(item.mediaUrl!, `generated-video-${item.id}.mp4`)}
+                        />
                     </div>
                 )}
             </div>
@@ -113,8 +122,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onDownload }) => {
 
         {/* Error State */}
         {item.type === "error" && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">
-                <AlertCircle size={16} />
+            <div className="flex items-center gap-3 p-4 bg-red-500/10 text-red-400 rounded-xl text-sm border border-red-500/20 mt-2">
+                <AlertCircle size={18} />
                 <p>{item.content || "An error occurred"}</p>
             </div>
         )}

@@ -23,16 +23,17 @@ This is an interactive Next.js web application designed to demonstrate and opera
     -   **Text-to-Image**: Generates from text prompt if no images are uploaded.
     -   **Image-to-Image**: Automatically switches to edit or composition mode if images (single or multiple) are uploaded.
 
-### 3. User Interface (UI/UX)
--   **Unified Context Bar**: A centralized image management area supporting drag-and-drop uploads, thumbnail previews, and clearing, available across all modes.
--   **Video Parameters Bar**: A dedicated parameter configuration bar for Video mode, providing intuitive dropdown menus.
--   **Conversational History**: Results are displayed as chat bubbles, preserving the creative history with infinite scroll and download support.
--   **Fixed Credits**: Fixed section at the bottom right displaying project source and author information.
+### 3. User Interface (Cinematic Dark Mode)
+-   **Theme Engine**: Custom Tailwind configuration (`app/globals.css`) implementing an "Electric Blue" (`oklch(0.6 0.2 240)`) and Deep Dark (`oklch(0.1 0.02 240)`) palette.
+-   **Floating Command Center**: `Composer.tsx` implements a floating glassmorphism capsule for inputs, separating controls from content.
+-   **Adaptive Context Bar**: `app/page.tsx` features a collapsible "Reference Media" panel that gracefully animates in/out based on user state.
+-   **Immersive Chat**: `ChatMessage.tsx` renders results in a transparent, avatar-based list with electric blue accents and high-fidelity media previews.
+-   **Video Player**: `VideoPlayer.tsx` features custom-styled controls matching the electric blue theme for a cohesive playback experience.
 
 ## 🛠️ Technical Specifications
 
 ### Tech Stack
--   **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS.
+-   **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4.
 -   **Backend**: Next.js API Routes (Route Handlers).
 -   **API Integration**:
     -   Uses `@google/genai` SDK for standard generation requests.
@@ -44,7 +45,7 @@ This is an interactive Next.js web application designed to demonstrate and opera
     -   Constraint logic (`useEffect`).
     -   API integration logic (`startGeneration`, `poll`).
     -   UI rendering logic (Context Bar, History List).
--   `components/ui/Composer.tsx`: Fixed bottom input area. Contains Prompt input, mode switch buttons (Image/Video), and Submit button.
+-   `components/ui/Composer.tsx`: Floating input capsule. Contains Prompt input, mode switch tabs (Image/Video), and the primary "Generate" button.
 -   `components/ui/ChatMessage.tsx`: Renders chat history, supporting Markdown text, image previews, and video players.
 -   `app/api/veo/generate/route.ts`: Handles video generation requests.
     -   Parses multiple images from `multipart/form-data`.

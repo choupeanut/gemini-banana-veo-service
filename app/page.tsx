@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import Image from "next/image";
-import { Upload, Film, Image as ImageIcon } from "lucide-react";
+import { Film, Image as ImageIcon, Sparkles, X } from "lucide-react";
 import Composer from "@/components/ui/Composer";
 import ChatMessage, { HistoryItem } from "@/components/ui/ChatMessage";
 
@@ -20,18 +20,16 @@ const POLL_INTERVAL_MS = 5000;
 
 const VeoStudio: React.FC = () => {
   const [mode, setMode] = useState<StudioMode>("image");
-  const [prompt, setPrompt] = useState(""); // Unified prompt for all modes
+  const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [resolution, setResolution] = useState("720p");
   const [durationSeconds, setDurationSeconds] = useState("4");
   const [selectedModel, setSelectedModel] = useState("gemini-3-pro-image-preview");
 
-  // History State
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Update selected model when mode changes
   useEffect(() => {
     if (mode === "video") {
       setSelectedModel("veo-3.1-generate-preview");
@@ -42,41 +40,12 @@ const VeoStudio: React.FC = () => {
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [multipleImageFiles, setMultipleImageFiles] = useState<File[]>([]);
-  
-  // Busy states
   const [geminiBusy, setGeminiBusy] = useState(false);
-  
-  // Legacy state for Edit Mode context (keeps track of the last generated image for editing)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null); 
 
-  // Debug multipleImageFiles state
-  useEffect(() => {
-    /* console.log(
-      "multipleImageFiles state changed:",
-      multipleImageFiles.length,
-      multipleImageFiles
-    ); */
-  }, [multipleImageFiles]);
-
-  useEffect(() => {
-    let objectUrl: string | null = null;
-    if (imageFile) {
-      objectUrl = URL.createObjectURL(imageFile);
-    } else {
-    }
-
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [imageFile]);
-
-  // Active video generation tracking
   const [activeOperation, setActiveOperation] = useState<{ id: string; name: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Enforce Veo 3.1 constraints
   useEffect(() => {
     if (mode === "video") {
         const hasImages = imageFile || generatedImage || multipleImageFiles.length > 0;
@@ -90,7 +59,6 @@ const VeoStudio: React.FC = () => {
     }
   }, [mode, resolution, imageFile, generatedImage, multipleImageFiles, durationSeconds]);
 
-  // Auto-scroll to bottom when history changes
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -98,7 +66,6 @@ const VeoStudio: React.FC = () => {
   }, [history, isGenerating, geminiBusy]);
 
   const canStart = useMemo(() => {
-    // Basic check: must have prompt and not be busy
     if (!prompt.trim()) return false;
     return !isGenerating && !geminiBusy;
   }, [prompt, isGenerating, geminiBusy]);
@@ -109,7 +76,6 @@ const VeoStudio: React.FC = () => {
     setAspectRatio("16:9");
     setImageFile(null);
     setMultipleImageFiles([]);
-    // We do NOT clear history or generatedImage (context) on reset, just inputs
   };
 
   const addHistoryItem = (item: HistoryItem) => {
@@ -129,14 +95,12 @@ const VeoStudio: React.FC = () => {
       const hasImages = imageFile || generatedImage || multipleImageFiles.length > 0;
 
       if (!hasImages) {
-          // Text-to-Image
           resp = await fetch("/api/gemini/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt, model: selectedModel }),
           });
       } else {
-          // Image-to-Image (Edit/Compose)
           const form = new FormData();
           form.append("prompt", prompt);
           form.append("model", selectedModel);
@@ -145,7 +109,6 @@ const VeoStudio: React.FC = () => {
           multipleImageFiles.forEach(f => form.append("imageFiles", f));
 
           if (generatedImage && !imageFile && multipleImageFiles.length === 0) {
-             // Convert base64 to blob for context
              try {
                 const [meta, b64] = generatedImage.split(",");
                 const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
@@ -162,7 +125,6 @@ const VeoStudio: React.FC = () => {
              }
           }
 
-          // Use edit endpoint for multimodal image generation
           resp = await fetch("/api/gemini/edit", {
             method: "POST",
             body: form,
@@ -178,7 +140,7 @@ const VeoStudio: React.FC = () => {
 
       if (json?.image?.imageBytes) {
         const dataUrl = `data:${json.image.mimeType};base64,${json.image.imageBytes}`;
-        setGeneratedImage(dataUrl); // Update context
+        setGeneratedImage(dataUrl);
         updateHistoryItem(loadingId, {
             type: "image",
             mediaUrl: dataUrl,
@@ -199,11 +161,9 @@ const VeoStudio: React.FC = () => {
     }
   }, [prompt, selectedModel, imageFile, multipleImageFiles, generatedImage]);
 
-  // Start generation based on current mode
   const startGeneration = useCallback(async () => {
     if (!canStart) return;
 
-    // 1. Add User Message
     addHistoryItem({
       id: Date.now().toString(),
       role: "user",
@@ -217,7 +177,6 @@ const VeoStudio: React.FC = () => {
       ]
     });
 
-    // 2. Add Loading Model Message
     const loadingId = (Date.now() + 1).toString();
     addHistoryItem({
       id: loadingId,
@@ -239,7 +198,6 @@ const VeoStudio: React.FC = () => {
       if (resolution) form.append("resolution", resolution);
       if (durationSeconds) form.append("durationSeconds", durationSeconds);
 
-      // Handle multiple images for Veo 3.1
       multipleImageFiles.forEach((file) => {
         form.append("imageFiles", file);
       });
@@ -248,7 +206,6 @@ const VeoStudio: React.FC = () => {
         form.append("imageFiles", imageFile);
       } 
       else if (generatedImage) {
-          // Convert base64 to blob
           try {
             const [meta, b64] = generatedImage.split(",");
             const mime = meta?.split(";")?.[0]?.replace("data:", "") || "image/png";
@@ -287,13 +244,10 @@ const VeoStudio: React.FC = () => {
         });
       }
     } else {
-      // Unified Image Generation
       await handleImageGeneration(loadingId);
     }
     
-    // Clear inputs after submission
     setPrompt("");
-    // We keep images to allow iterative refinement, unless user clears them.
 
   }, [
     canStart,
@@ -310,7 +264,6 @@ const VeoStudio: React.FC = () => {
     durationSeconds,
   ]);
 
-  // Poll operation until done then download
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
@@ -322,7 +275,6 @@ const VeoStudio: React.FC = () => {
           body: JSON.stringify({ name: activeOperation.name }),
         });
         const fresh = await resp.json();
-        console.log("Polling response:", fresh);
         
         if (fresh?.error) {
             throw new Error(fresh.error.message || "Operation failed with error");
@@ -333,10 +285,8 @@ const VeoStudio: React.FC = () => {
              throw new Error(fresh.response.error.message || "Generation failed");
           }
 
-          // Inspect response structure
           const responsePayload = fresh?.response?.generateVideoResponse || fresh?.response || fresh?.result;
 
-          // Check for RAI filtering
           if (responsePayload?.raiMediaFilteredReasons?.length > 0) {
               throw new Error(`Generation filtered: ${responsePayload.raiMediaFilteredReasons.join(", ")}`);
           }
@@ -345,8 +295,6 @@ const VeoStudio: React.FC = () => {
                throw new Error("Generation filtered by safety policies.");
           }
 
-          // Try various paths to find the video
-          // Veo 3.1 uses 'generatedSamples', older models might use 'generatedVideos'
           const videoObj = responsePayload?.generatedVideos?.[0] || responsePayload?.generatedSamples?.[0];
           
           const fileUri = videoObj?.video?.uri || 
@@ -361,21 +309,18 @@ const VeoStudio: React.FC = () => {
             const blob = await dl.blob();
             const url = URL.createObjectURL(blob);
             
-            // Update history
             updateHistoryItem(activeOperation.id, {
                 type: "video",
                 mediaUrl: url,
                 isLoading: false,
-                content: undefined // Remove "Generating..." text
+                content: undefined 
             });
           } else {
-              console.error("Unexpected polling response structure:", fresh);
-              // Check for safety filters or other non-error blocks
               const blocked = fresh?.response?.promptFeedback?.blockReason || fresh?.result?.promptFeedback?.blockReason;
               if (blocked) {
                   throw new Error(`Generation blocked: ${blocked}`);
               }
-              throw new Error(`No video URI. Structure: ${JSON.stringify(fresh).substring(0, 100)}...`);
+              throw new Error("No video URI returned.");
           }
           setIsGenerating(false);
           setActiveOperation(null);
@@ -406,7 +351,6 @@ const VeoStudio: React.FC = () => {
     const f = e.target.files?.[0];
     if (f) {
       setImageFile(f);
-      // setGeneratedImage(null); // Keep generated image as backup or clear? Let's keep to not annoy user.
     }
   };
 
@@ -414,8 +358,6 @@ const VeoStudio: React.FC = () => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
       const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-      
-      // Dynamic limits based on mode
       const maxImages = mode === "video" ? 3 : 6;
       const remainingSlots = maxImages - multipleImageFiles.length;
       
@@ -432,8 +374,6 @@ const VeoStudio: React.FC = () => {
   };
 
   const downloadImage = async () => {
-     // Legacy download for "current" image, mostly for Composer button
-     // If there is a generatedImage, download it.
      if (!generatedImage) return;
      const link = document.createElement("a");
      link.href = generatedImage;
@@ -448,13 +388,7 @@ const VeoStudio: React.FC = () => {
     link.click();
   };
 
-  // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
@@ -468,17 +402,13 @@ const VeoStudio: React.FC = () => {
 
     if (limitedFiles.length > 0) {
       if (mode === "image") {
-         // If dropping single image in image mode, replace single file
-         // or if dropping multiple, append? 
          if (limitedFiles.length === 1 && multipleImageFiles.length === 0) {
              setImageFile(limitedFiles[0]);
          } else {
-             // Append to multiple, enforcing limit (max 6 for image mode)
              const remaining = 6 - multipleImageFiles.length;
              setMultipleImageFiles(prev => [...prev, ...limitedFiles.slice(0, remaining)]);
          }
       } else if (mode === "video") {
-        // Enforce limit (max 3 for video mode)
         if (multipleImageFiles.length < 3) {
             const remaining = 3 - multipleImageFiles.length;
             setMultipleImageFiles(prev => [...prev, ...limitedFiles.slice(0, remaining)]);
@@ -491,36 +421,43 @@ const VeoStudio: React.FC = () => {
 
   return (
     <div
-      className="relative min-h-screen w-full text-stone-900"
+      className="relative min-h-screen w-full"
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Top Gradient Line */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50"></div>
+
       {/* Main content area */}
-      <div className="flex flex-col items-center justify-start min-h-screen pb-60 pt-10 px-4 w-full max-w-5xl mx-auto">
+      <div className="flex flex-col items-center justify-start min-h-screen pb-72 pt-12 px-4 w-full max-w-5xl mx-auto">
         
-        {/* Placeholder / Empty State */}
+        {/* Empty State */}
         {history.length === 0 && (
-            <div className="w-full max-w-3xl mt-20">
-              <div className="flex flex-col items-center justify-center gap-6 text-center px-4">
-                  {mode === "video" ? (
-                    <Film className="w-20 h-20 text-stone-300" />
-                  ) : (
-                    <ImageIcon className="w-20 h-20 text-stone-300" />
-                  )}
-                  <h2 className="text-2xl font-semibold text-stone-600">
-                    {mode === "video" ? "Create Video" : "Generate Images"}
-                  </h2>
-                  <p className="text-stone-500 max-w-md">
-                    Select a mode below and type a prompt to get started. 
-                    Upload images to guide generation.
-                  </p>
-              </div>
+            <div className="w-full max-w-2xl mt-32 flex flex-col items-center justify-center gap-8 text-center animate-in fade-in zoom-in duration-500">
+                  <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
+                    <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-card border border-white/10 shadow-2xl">
+                         {mode === "video" ? (
+                            <Film className="w-10 h-10 text-primary" />
+                         ) : (
+                            <ImageIcon className="w-10 h-10 text-primary" />
+                         )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h2 className="text-4xl font-bold tracking-tight text-white">
+                        {mode === "video" ? "Veo Video Studio" : "Gemini Image Studio"}
+                    </h2>
+                    <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                        Create {mode === "video" ? "cinematic videos" : "stunning images"} with Google&apos;s most advanced AI models.
+                    </p>
+                  </div>
             </div>
         )}
 
         {/* History List */}
-        <div className="w-full flex flex-col gap-2 mb-4">
+        <div className="w-full flex flex-col gap-4 mb-4">
             {history.map((item) => (
                 <ChatMessage 
                     key={item.id} 
@@ -531,34 +468,36 @@ const VeoStudio: React.FC = () => {
             <div ref={scrollRef} />
         </div>
 
-        {/* Video Parameters Bar */}
+        {/* Video Parameters Bar - Floating & Glass */}
         {mode === "video" && (
-            <div className="w-full max-w-2xl mx-auto mb-4 p-3 bg-white/40 backdrop-blur-sm rounded-lg border border-stone-200 flex flex-wrap gap-4 justify-center items-center text-xs text-stone-700">
-                <div className="flex items-center gap-2">
-                    <label className="font-medium">Resolution:</label>
+            <div className="w-full max-w-2xl mx-auto mb-6 p-2 bg-card/50 backdrop-blur-xl rounded-full border border-white/10 flex flex-wrap gap-4 justify-center items-center shadow-lg">
+                <div className="flex items-center gap-2 px-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quality</label>
                     <select 
                         value={resolution} 
                         onChange={(e) => setResolution(e.target.value)}
-                        className="bg-white/60 border border-stone-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                        className="bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
                     >
-                        <option value="720p">720p</option>
-                        <option value="1080p">1080p</option>
-                        <option value="4k">4K</option>
+                        <option value="720p" className="bg-card">720p HD</option>
+                        <option value="1080p" className="bg-card">1080p FHD</option>
+                        <option value="4k" className="bg-card">4K UHD</option>
                     </select>
                 </div>
-                <div className="flex items-center gap-2">
-                    <label className="font-medium">Aspect Ratio:</label>
+                <div className="w-px h-4 bg-white/10"></div>
+                <div className="flex items-center gap-2 px-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Aspect</label>
                     <select 
                         value={aspectRatio} 
                         onChange={(e) => setAspectRatio(e.target.value)}
-                        className="bg-white/60 border border-stone-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-stone-400"
+                        className="bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer"
                     >
-                        <option value="16:9">16:9</option>
-                        <option value="9:16">9:16</option>
+                        <option value="16:9" className="bg-card">16:9 Landscape</option>
+                        <option value="9:16" className="bg-card">9:16 Portrait</option>
                     </select>
                 </div>
-                <div className="flex items-center gap-2">
-                    <label className="font-medium">Duration:</label>
+                <div className="w-px h-4 bg-white/10"></div>
+                <div className="flex items-center gap-2 px-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Duration</label>
                     <select 
                         value={durationSeconds} 
                         onChange={(e) => setDurationSeconds(e.target.value)}
@@ -569,68 +508,54 @@ const VeoStudio: React.FC = () => {
                             !!generatedImage || 
                             multipleImageFiles.length > 0
                         }
-                        className="bg-white/60 border border-stone-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-stone-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={
-                            resolution === "1080p" || resolution === "4k" || !!imageFile || !!generatedImage || multipleImageFiles.length > 0
-                            ? "Locked to 8s for High Res or Image Input"
-                            : ""
-                        }
+                        className="bg-transparent text-sm font-medium text-foreground focus:outline-none cursor-pointer disabled:opacity-50"
                     >
-                        <option value="4">4s</option>
-                        <option value="6">6s</option>
-                        <option value="8">8s</option>
+                        <option value="4" className="bg-card">4 Seconds</option>
+                        <option value="6" className="bg-card">6 Seconds</option>
+                        <option value="8" className="bg-card">8 Seconds</option>
                     </select>
                 </div>
             </div>
         )}
 
-        {/* Persistent Context Area (Input Images) - Always visible/accessible */}
-        <div className="w-full max-w-2xl mx-auto mb-32 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-stone-200 shadow-sm">
+        {/* Persistent Context Area (Input Images) */}
+        <div className={`w-full max-w-2xl mx-auto mb-8 transition-all duration-300 ${
+            (imageFile || generatedImage || multipleImageFiles.length > 0) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none h-0 overflow-hidden"
+        }`}>
+            <div className="p-4 bg-card/30 backdrop-blur-md rounded-2xl border border-white/5">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-stone-600">
-                            Input Context (Images)
-                        </span>
-                        <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded border border-stone-200">
-                            {mode === "video" ? "Max 3 for Veo 3.1" : "Max 6 for Banana Pro"}
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Reference Media
                         </span>
                     </div>
-                    <div className="flex gap-2">
-                        {(imageFile || generatedImage || multipleImageFiles.length > 0) && (
-                            <button 
-                                onClick={() => {
-                                    setImageFile(null);
-                                    setMultipleImageFiles([]);
-                                    setGeneratedImage(null);
-                                }}
-                                className="text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded-md transition-colors"
-                            >
-                                Clear
-                            </button>
-                        )}
-                    </div>
+                    <button 
+                        onClick={() => {
+                            setImageFile(null);
+                            setMultipleImageFiles([]);
+                            setGeneratedImage(null);
+                        }}
+                        className="text-xs text-muted-foreground hover:text-white transition-colors flex items-center gap-1"
+                    >
+                        <X className="w-3 h-3" /> Clear
+                    </button>
                 </div>
 
-                {/* Image Previews & Dropzone */}
                 <div className="flex flex-wrap gap-3 items-center">
-                     {/* Show legacy/single generated image as one of the inputs if exists */}
                      {(imageFile || generatedImage) && (
-                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-stone-300 bg-stone-100 group shrink-0">
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 group shadow-md">
                                 <Image
                                 src={imageFile ? URL.createObjectURL(imageFile) : generatedImage!}
                                 alt="Context"
                                 fill
                                 className="object-cover"
                             />
-                            <div className="absolute inset-0 bg-black/50 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                Base
-                            </div>
                         </div>
                      )}
                      
-                     {/* Multiple uploaded images */}
                      {multipleImageFiles.map((file, idx) => (
-                        <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-stone-300 bg-stone-100 shrink-0">
+                        <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 shadow-md">
                                 <Image
                                 src={URL.createObjectURL(file)}
                                 alt={`Input ${idx}`}
@@ -639,32 +564,8 @@ const VeoStudio: React.FC = () => {
                             />
                         </div>
                      ))}
-
-                     {/* Dropzone Card (Add Button) */}
-                     {(!imageFile && !generatedImage && multipleImageFiles.length === 0) ? (
-                        // Empty State: Big Dropzone
-                        <div 
-                            className="w-full h-32 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-2 text-stone-500 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all"
-                            onClick={() => document.getElementById("multiple-image-input")?.click()}
-                        >
-                            <Upload className="w-8 h-8 opacity-60" />
-                            <div className="text-sm font-medium">Drop images here or click to upload</div>
-                            <div className="text-xs opacity-60">Up to {mode === "video" ? "3" : "6"} images</div>
-                        </div>
-                     ) : (
-                        // Has content: Small Add Button (if limit not reached)
-                        (multipleImageFiles.length < (mode === "video" ? 3 : 6) && !imageFile) && (
-                            <div 
-                                className="w-24 h-24 border-2 border-dashed border-stone-300 rounded-lg flex flex-col items-center justify-center gap-1 text-stone-400 cursor-pointer hover:bg-stone-50 hover:border-stone-400 transition-all shrink-0"
-                                onClick={() => document.getElementById("multiple-image-input")?.click()}
-                                title="Add more images"
-                            >
-                                <Upload className="w-6 h-6" />
-                                <span className="text-[10px]">Add</span>
-                            </div>
-                        )
-                     )}
                 </div>
+            </div>
         </div>
 
       </div>
@@ -691,7 +592,7 @@ const VeoStudio: React.FC = () => {
         mode={mode}
         setMode={setMode}
         hasGeneratedImage={!!generatedImage}
-        hasVideoUrl={false} // Always allow continuing
+        hasVideoUrl={false}
         prompt={prompt}
         setPrompt={setPrompt}
         canStart={canStart}
@@ -700,17 +601,9 @@ const VeoStudio: React.FC = () => {
         geminiBusy={geminiBusy}
         resetAll={resetAll}
         downloadImage={downloadImage}
+        onAddImage={() => document.getElementById("multiple-image-input")?.click()}
       />
-
-      {/* Fixed Credits (Bottom Right) */}
-      <div className="fixed bottom-4 right-4 z-50 text-xs text-stone-400 max-w-[300px] leading-tight hidden md:block text-right">
-          <p>
-              Credit: <a href="https://github.com/choupeanut/gemini-banana-veo-service" target="_blank" rel="noopener noreferrer" className="hover:text-stone-600 underline decoration-stone-300">Peanut Chou</a>
-          </p>
-          <p className="mt-1 opacity-70">
-              forked from: <a href="https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart" target="_blank" rel="noopener noreferrer" className="hover:text-stone-600 underline decoration-stone-300 text-[10px]">google-gemini/veo-3-nano-banana-gemini-api-quickstart</a>
-          </p>
-      </div>
+      
     </div>
   );
 };

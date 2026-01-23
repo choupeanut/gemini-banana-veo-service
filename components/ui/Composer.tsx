@@ -7,10 +7,13 @@ import {
   Video,
   Download,
   Sparkles,
+  Paperclip
 } from "lucide-react";
 import {
   Tooltip,
   TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
 } from "@/components/ui/tooltip";
 
 type StudioMode =
@@ -34,6 +37,7 @@ interface ComposerProps {
 
   resetAll: () => void;
   downloadImage: () => void;
+  onAddImage: () => void;
 }
 
 const Composer: React.FC<ComposerProps> = ({
@@ -49,6 +53,7 @@ const Composer: React.FC<ComposerProps> = ({
   geminiBusy,
   resetAll,
   downloadImage,
+  onAddImage
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -62,107 +67,123 @@ const Composer: React.FC<ComposerProps> = ({
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 w-[min(100%,48rem)] px-4">
-      <div className="relative text-slate-900/80 backdrop-blur-sm bg-white/30 px-3 py-1 rounded-lg ">
-        {hasGeneratedImage && !hasVideoUrl && (
-          <div className="absolute -top-12 right-0 z-10">
-            <button
-              onClick={downloadImage}
-              className="inline-flex items-center gap-2 bg-white/30 hover:bg-white text-slate-700 py-2 px-4 rounded-lg transition-colors"
-              title="Download Image"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download</span>
-            </button>
-          </div>
-        )}
-        
-        {/* Model Selector hidden as requested */}
-        {/* <div className="flex items-center justify-between mb-3">
-          <ModelSelector
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            mode={mode}
-          />
-        </div> */}
-
-        {/* Input Area */}
-        <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={mode === "video" ? "Generate a video..." : "Generate or edit an image..."}
-            className="w-full bg-transparent focus:outline-none resize-none text-base font-normal placeholder-slate-800/60"
-            rows={2}
-        />
-
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleReset}
-              className="h-10 w-10 flex items-center justify-center bg-white/50 rounded-full hover:bg-white/70 cursor-pointer"
-              title="Reset"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-          </div>
+    <TooltipProvider delayDuration={0}>
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-[min(95%,42rem)]">
+      
+      {/* Mode Switcher Tabs - Floating above */}
+      <div className="absolute -top-12 left-0 flex gap-1 p-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
           <button
-            onClick={startGeneration}
-            disabled={!canStart || isGenerating || geminiBusy}
-            aria-busy={isGenerating || geminiBusy}
-            className={`h-10 w-10 flex items-center justify-center rounded-full text-white transition ${
-              !canStart || isGenerating || geminiBusy
-                ? "bg-white/50 cursor-not-allowed"
-                : "bg-white/50 hover:bg-white/70 cursor-pointer"
+            onClick={() => setMode("image")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              mode === "image"
+                ? "bg-white/10 text-white shadow-inner"
+                : "text-stone-400 hover:text-white hover:bg-white/5"
             }`}
-            title="Generate"
           >
-            {isGenerating || geminiBusy ? (
-              <div className="w-4 h-4 border-2 border-t-transparent border-black rounded-full animate-spin" />
-            ) : (
-              <Sparkles className="w-5 h-5 text-black" />
-            )}
+            <ImageIcon className="w-4 h-4" />
+            <span>Image</span>
           </button>
-        </div>
+          <button
+            onClick={() => setMode("video")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              mode === "video"
+                ? "bg-white/10 text-white shadow-inner"
+                : "text-stone-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            <span>Video</span>
+          </button>
+      </div>
 
-        {/* Mode Badges */}
-        <div className="flex gap-1 mt-3 bg-white/10 rounded-md p-1 border border-white/20">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setMode("image")}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "image"
-                    ? "bg-yellow-400/30 text-slate-900 backdrop-blur-sm"
-                    : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
-                }`}
-              >
-                <ImageIcon className="w-4 h-4" aria-hidden="true" />
-                <span>Create Image</span>
-                {mode === "image" && <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded border border-yellow-200">🍌 Nano Banana Pro</span>}
-              </button>
-            </TooltipTrigger>
-          </Tooltip>
-          
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setMode("video")}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition flex-1 ${
-                  mode === "video"
-                    ? "bg-purple-400/30 text-slate-900 backdrop-blur-sm"
-                    : "text-slate-700 hover:bg-white/30 hover:text-slate-900"
-                }`}
-              >
-                <Video className="w-4 h-4" />
-                <span>Create Video</span>
-                {mode === "video" && <span className="text-[10px] bg-purple-100 text-purple-800 px-1 rounded border border-purple-200">Veo 3.1</span>}
-              </button>
-            </TooltipTrigger>
-          </Tooltip>
+      {/* Main Composer Capsule */}
+      <div className="relative bg-[#0a0a0a]/80 backdrop-blur-2xl p-4 rounded-3xl border border-white/10 shadow-2xl ring-1 ring-white/5">
+        
+        {/* Input Area */}
+        <div className="relative flex flex-col gap-2">
+            <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={mode === "video" ? "Describe the video you want to create..." : "Describe the image you want to generate..."}
+                className="w-full bg-transparent focus:outline-none resize-none text-[15px] leading-relaxed font-medium text-white placeholder-stone-500 min-h-[50px] max-h-[200px] py-1"
+                rows={2}
+            />
+            
+            {/* Actions Bar */}
+            <div className="flex items-center justify-between pt-2 mt-1 border-t border-white/5">
+                <div className="flex items-center gap-1">
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={onAddImage}
+                                className="h-9 w-9 flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                            >
+                                <Paperclip className="w-5 h-5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="bg-stone-900 border-stone-800 text-stone-200">
+                           <p>Add reference images</p>
+                        </TooltipContent>
+                     </Tooltip>
+
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={handleReset}
+                                className="h-9 w-9 flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="bg-stone-900 border-stone-800 text-stone-200">
+                           <p>Reset all inputs</p>
+                        </TooltipContent>
+                     </Tooltip>
+                     
+                     {hasGeneratedImage && !hasVideoUrl && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={downloadImage}
+                                    className="h-9 w-9 flex items-center justify-center text-stone-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                                >
+                                    <Download className="w-5 h-5" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="bg-stone-900 border-stone-800 text-stone-200">
+                               <p>Download Image</p>
+                            </TooltipContent>
+                        </Tooltip>
+                     )}
+                </div>
+
+                <button
+                    onClick={startGeneration}
+                    disabled={!canStart || isGenerating || geminiBusy}
+                    className={`h-10 px-5 flex items-center gap-2 rounded-full font-semibold text-sm transition-all duration-300 shadow-lg hover:shadow-primary/25 ${
+                    !canStart || isGenerating || geminiBusy
+                        ? "bg-white/5 text-stone-500 cursor-not-allowed"
+                        : "bg-gradient-to-r from-primary to-blue-500 text-white hover:scale-105"
+                    }`}
+                >
+                    {isGenerating || geminiBusy ? (
+                         <>
+                            <div className="w-4 h-4 border-2 border-t-transparent border-white/50 rounded-full animate-spin" />
+                            <span>Creating...</span>
+                         </>
+                    ) : (
+                        <>
+                            <Sparkles className="w-4 h-4 fill-white" />
+                            <span>Generate</span>
+                        </>
+                    )}
+                </button>
+            </div>
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 

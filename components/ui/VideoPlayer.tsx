@@ -13,7 +13,6 @@ import {
 
 interface VideoPlayerProps {
   src: string;
-  // Called when a new output is produced (e.g., after trimming and exporting)
   onOutputChanged?: (blob: Blob) => void;
   onDownload?: () => void;
   onResetTrim?: () => void;
@@ -53,7 +52,6 @@ export default function VideoPlayer({
   const [showTrimBar, setShowTrimBar] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
-  // Reset trim UI when the source changes
   useEffect(() => {
     setIsTrimmed(false);
     setTrimRange([0, 0]);
@@ -68,7 +66,6 @@ export default function VideoPlayer({
   }, [src]);
 
   useEffect(() => {
-    // Ensure consistent mute/volume on element
     if (playerRef.current) {
       playerRef.current.muted = muted;
       playerRef.current.volume = volume;
@@ -137,10 +134,8 @@ export default function VideoPlayer({
     const video = playerRef.current;
     if (!video) return;
     const raw = video.duration;
-    // Some MediaRecorder blobs report Infinity until a seek occurs
     if (!Number.isFinite(raw) || raw === Infinity || raw === 0) {
       const onSeeked = () => {
-        // After seeking to a large time, duration becomes available
         const fixed = video.duration;
         const computed =
           Number.isFinite(fixed) && fixed > 0 ? fixed : video.currentTime || 0;
@@ -200,7 +195,6 @@ export default function VideoPlayer({
       const video = playerRef.current;
       if (!video || endTime <= startTime) return null;
 
-      // Ensure captureStream is available
       try {
         await video.play();
         await new Promise((r) => setTimeout(r, 50));
@@ -273,7 +267,6 @@ export default function VideoPlayer({
         } else {
           video.currentTime = startTime;
         }
-        // Use a small timeslice so dataavailable fires periodically and final blob isn't empty.
         try {
           setIsRecording(true);
           recorder.start(200);
@@ -304,7 +297,6 @@ export default function VideoPlayer({
     }
     setPlayed(0);
 
-    // Best-effort fallback recording to provide a quick preview blob
     const blob = await recordSegment(startTime, endTime);
     if (blob) {
       onOutputChanged?.(blob);
@@ -341,7 +333,7 @@ export default function VideoPlayer({
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <div className="relative aspect-video overflow-hidden rounded-lg">
+      <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
         <video
           ref={playerRef}
           src={src}
@@ -371,12 +363,11 @@ export default function VideoPlayer({
           loop={!isTrimmed && !isRecording}
         />
 
-        {/* Bottom overlay trim bar (toggleable) */}
         {showTrimBar && (
           <div className="absolute left-0 right-0 bottom-2 z-20 px-4">
-            <div className="backdrop-blur-sm bg-white/30 rounded-xl px-3 py-2">
+            <div className="backdrop-blur-md bg-black/60 rounded-xl px-3 py-2 border border-white/10">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-800/90 min-w-8 text-center">
+                <span className="text-xs text-white/90 min-w-8 text-center font-mono">
                   {formatTime(trimRange[0])}
                 </span>
                 <div className="relative flex-1 h-6 flex">
@@ -384,7 +375,7 @@ export default function VideoPlayer({
                     className="absolute inset-y-0 left-0 pointer-events-none z-0"
                     style={{
                       width: `${(trimRange[0] / (duration || 1)) * 100}%`,
-                      backgroundColor: "rgba(0,0,0,0.5)",
+                      backgroundColor: "rgba(255,255,255,0.1)",
                       borderRadius: 8,
                       height: 28,
                     }}
@@ -393,7 +384,7 @@ export default function VideoPlayer({
                     className="absolute inset-y-0 right-0 pointer-events-none z-0"
                     style={{
                       width: `${(1 - trimRange[1] / (duration || 1)) * 100}%`,
-                      backgroundColor: "rgba(0,0,0,0.5)",
+                      backgroundColor: "rgba(255,255,255,0.1)",
                       borderRadius: 8,
                       height: 28,
                     }}
@@ -416,27 +407,28 @@ export default function VideoPlayer({
                           width: 8,
                           height: 28,
                           borderRadius: 4,
-                          backgroundColor: "#000",
-                          borderColor: "#000",
+                          backgroundColor: "white",
+                          borderColor: "white",
                           marginBottom: 10,
+                          boxShadow: "0 0 10px rgba(0,0,0,0.5)"
                         },
                       }}
                     />
                   </div>
                 </div>
-                <span className="text-xs text-slate-800/90 min-w-8 text-center">
+                <span className="text-xs text-white/90 min-w-8 text-center font-mono">
                   {formatTime(trimRange[1])}
                 </span>
                 <div className="flex items-center gap-2 pl-1">
                   <button
                     onClick={handleTrim}
-                    className="inline-flex items-center gap-1 h-8 px-3 rounded-md backdrop-blur-sm bg-black/60 hover:bg-black/70 text-white text-xs cursor-pointer"
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-md backdrop-blur-sm bg-primary/80 hover:bg-primary text-white text-xs cursor-pointer transition-colors"
                   >
                     Cut
                   </button>
                   <button
                     onClick={handleResetTrim}
-                    className="inline-flex items-center gap-1 h-8 px-3 rounded-md backdrop-blur-sm bg-white/60 hover:bg-white/70 text-black text-xs cursor-pointer"
+                    className="inline-flex items-center gap-1 h-8 px-3 rounded-md backdrop-blur-sm bg-white/10 hover:bg-white/20 text-white text-xs cursor-pointer transition-colors"
                     disabled={!isTrimmed}
                   >
                     Reset
@@ -448,12 +440,11 @@ export default function VideoPlayer({
         )}
       </div>
 
-      {/* Controls below the video */}
-      <div className="p-4 text-white">
-        <div className="flex items-center gap-4 backdrop-blur-sm bg-white/30 rounded-xl px-3 py-2">
+      <div className="mt-2 text-white">
+        <div className="flex items-center gap-4 backdrop-blur-md bg-white/5 border border-white/10 rounded-xl px-3 py-2">
           <button
             onClick={handlePlayPause}
-            className="focus:outline-none text-black"
+            className="focus:outline-none text-white hover:text-primary transition-colors"
           >
             {playing ? (
               <Pause className="w-6 h-6" />
@@ -471,19 +462,20 @@ export default function VideoPlayer({
               onChange={handleSeekChange}
               onAfterChange={() => setSeeking(false)}
               styles={{
-                track: { backgroundColor: "#0ea5e9" },
-                handle: { backgroundColor: "#0ea5e9", borderColor: "#0ea5e9" },
+                track: { backgroundColor: "var(--color-primary)" },
+                handle: { backgroundColor: "white", borderColor: "white", boxShadow: "0 0 5px rgba(0,0,0,0.5)" },
+                rail: { backgroundColor: "rgba(255,255,255,0.2)" }
               }}
             />
           </div>
-          <div className="text-sm text-black">
+          <div className="text-sm text-stone-300 font-mono">
             {formatTime(currentDisplaySeconds)} /{" "}
             {formatTime(totalDisplaySeconds)}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleMute}
-              className="focus:outline-none text-black"
+              className="focus:outline-none text-stone-300 hover:text-white transition-colors"
             >
               {muted || volume === 0 ? (
                 <VolumeX className="w-5 h-5" />
@@ -501,13 +493,14 @@ export default function VideoPlayer({
                 styles={{
                   track: { backgroundColor: "white" },
                   handle: { backgroundColor: "white", borderColor: "white" },
+                  rail: { backgroundColor: "rgba(255,255,255,0.2)" }
                 }}
               />
             </div>
             <button
               onClick={() => setShowTrimBar((s) => !s)}
               title={showTrimBar ? "Hide trimmer" : "Show trimmer"}
-              className={`ml-1 focus:outline-none hover:opacity-80 text-black`}
+              className={`ml-1 focus:outline-none hover:text-primary text-stone-300 transition-colors`}
             >
               <Scissors
                 className={`w-5 h-5 transition-transform duration-150 ${
@@ -518,7 +511,7 @@ export default function VideoPlayer({
             <button
               onClick={onDownload}
               title="Download"
-              className="ml-1 focus:outline-none text-black hover:opacity-80"
+              className="ml-1 focus:outline-none text-stone-300 hover:text-primary transition-colors"
             >
               <Download className="w-5 h-5" />
             </button>
